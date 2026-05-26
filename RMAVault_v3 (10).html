@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RMAVault</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0f1117;--s1:#181c27;--s2:#1e2333;--bd:#2a3048;--acc:#f0b429;--blue:#3b82f6;--green:#22c55e;--red:#ef4444;--purple:#a78bfa;--txt:#e8ecf4;--mut:#6b7898;--nvidia:#76b900}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,sans-serif;font-size:13px;min-height:100vh}
+input,select,textarea,button{font-family:inherit;font-size:13px}
+/* Header */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--bd);background:var(--s1);position:sticky;top:0;z-index:50;flex-wrap:wrap;gap:8px}
+.logo{display:flex;align-items:center;gap:8px}
+.logo-ic{width:26px;height:26px;background:var(--acc);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.logo-txt{font-size:15px;font-weight:700}.logo-txt b{color:var(--acc)}
+.hdr-btns{display:flex;gap:6px;flex-wrap:wrap}
+.hdr-btn{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--txt);font-weight:600;font-size:11px;cursor:pointer;transition:.15s}
+.hdr-btn:hover{border-color:var(--acc);color:var(--acc)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+/* Tabs */
+.tabs{display:flex;padding:10px 18px 0;border-bottom:1px solid var(--bd);background:var(--s1);gap:2px;flex-wrap:wrap}
+.tab{padding:8px 16px;border-radius:6px 6px 0 0;font-size:11px;font-weight:600;cursor:pointer;color:var(--mut);border:1px solid transparent;border-bottom:none;background:none;transition:.15s}
+.tab.on{background:var(--s2);border-color:var(--bd);color:var(--txt)}
+/* Body */
+.body{padding:18px;max-width:1100px;margin:0 auto}
+.panel{display:none}.panel.on{display:block}
+/* Split layout for import tab */
+.split{display:grid;grid-template-columns:1fr 360px;gap:20px}
+@media(max-width:800px){.split{grid-template-columns:1fr}}
+/* Cards */
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px}
+.card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--acc);margin-bottom:12px}
+/* Form fields */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld.full{grid-column:1/-1}
+.fld label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--mut)}
+.fld input,.fld select,.fld textarea{background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--txt);padding:7px 10px;outline:none;width:100%;transition:border-color .15s}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--acc)}
+.fld input.editable{border-color:#f0b42966;background:#f0b4291a}
+textarea{background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--txt);padding:10px 12px;outline:none;width:100%;line-height:1.6;resize:vertical}
+/* Buttons */
+.btn-acc{width:100%;padding:10px;border-radius:8px;border:none;background:var(--acc);color:#0f1117;font-weight:700;font-size:13px;cursor:pointer;transition:.15s}
+.btn-acc:hover{background:#f5c842}
+.btn-blue{width:100%;padding:10px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-weight:700;font-size:13px;cursor:pointer;transition:.15s}
+.btn-blue:hover{background:#2563eb}
+.btn-clear{padding:10px 14px;border-radius:8px;border:none;background:var(--red);color:#fff;font-weight:700;font-size:13px;cursor:pointer}
+/* Tag */
+.tag-wrap{position:sticky;top:64px}
+.tag-preview-card{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:16px}
+.tag-preview-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--acc);margin-bottom:12px}
+.tag{width:192px;height:384px;background:#fff;border:1px solid #aaa;padding:8px 10px;font-family:'IBM Plex Mono',monospace;color:#111;margin:0 auto;display:flex;flex-direction:column;overflow:hidden}
+.tag-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;padding-bottom:5px;border-bottom:2px solid #222}
+.tag-rma-box{border:2px solid #222;border-radius:2px;padding:2px 6px;min-width:80px;min-height:18px;font-size:12px;font-weight:900;color:#111}
+.tag-vendor-lbl{font-size:6px;font-weight:800;text-transform:uppercase;color:#555;text-align:right}
+.tag-vendor-val{font-size:8px;font-weight:800;color:#111;text-align:right}
+.tag-status{text-align:center;padding:4px;border-radius:3px;margin-bottom:5px;background:#fff;border:2px solid #000}
+.tag-status-txt{font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:2px;color:#000}
+.tag-row{display:flex;gap:4px;margin-bottom:4px}
+.tag-lbl{font-size:6px;font-weight:800;text-transform:uppercase;color:#333;min-width:50px;padding-top:1px}
+.tag-val{font-size:9px;font-weight:700;color:#111;flex:1;word-break:break-all;line-height:1.3}
+.tag-val.big{font-size:11px;font-weight:900}
+.tag-divider{border:none;border-top:1px dashed #bbb;margin:4px 0}
+.tag-bottom{display:flex;justify-content:space-between;align-items:flex-end;margin-top:auto;padding-top:5px;border-top:2px solid #222}
+#qr-container{width:52px;height:52px;flex-shrink:0}
+#qr-container canvas,#qr-container img{width:52px!important;height:52px!important}
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.stat{background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:12px 14px}
+.stat-n{font-size:20px;font-weight:800;margin-bottom:2px}
+.stat-l{font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+/* Table */
+.tblwrap{border-radius:10px;border:1px solid var(--bd);overflow:hidden}
+.tblscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:900px}
+thead{background:var(--s2)}
+th{padding:8px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--mut);border-bottom:1px solid var(--bd)}
+td{padding:8px 10px;font-size:11px;border-bottom:1px solid var(--bd);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--s2);cursor:pointer}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:14px;font-size:10px;font-weight:700}
+.sbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.srch{flex:1;min-width:180px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;color:var(--txt);padding:8px 12px;outline:none}
+.srch:focus{border-color:var(--blue)}
+.fsel{background:var(--s2);border:1px solid var(--bd);border-radius:8px;color:var(--txt);padding:8px 10px;outline:none;cursor:pointer}
+.act{background:none;border:none;color:var(--mut);cursor:pointer;font-size:13px;padding:0 3px}
+.act:hover{color:var(--red)}
+/* Bulk bar */
+.bulk-bar{display:none;background:var(--s2);border:1px solid var(--blue);border-radius:10px;padding:10px 14px;margin-bottom:12px;align-items:center;gap:10px;flex-wrap:wrap}
+/* Reports */
+.rpt-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:700px){.rpt-grid{grid-template-columns:1fr}}
+.rpt-card{background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:14px}
+.rpt-card h3{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--acc);margin-bottom:12px}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.bar-label{min-width:110px;color:var(--txt);font-family:monospace;font-size:10px;text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;background:var(--s1);border-radius:4px;height:18px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:5px;font-size:10px;font-weight:700;color:#0f1117;transition:width .4s}
+.bar-count{font-size:10px;color:var(--mut);font-family:monospace;min-width:24px;text-align:right}
+.trend-wrap{display:flex;align-items:flex-end;gap:3px;height:70px}
+.trend-col{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1}
+.trend-bar{width:100%;border-radius:3px 3px 0 0;background:var(--acc);min-height:2px}
+.trend-label{font-size:8px;color:var(--mut);font-family:monospace;text-align:center;white-space:nowrap}
+.trend-count{font-size:8px;color:var(--acc);font-family:monospace;font-weight:700}
+.rpt-empty{text-align:center;padding:16px;color:var(--mut);font-size:11px}
+/* Modal */
+.mbg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:none;align-items:center;justify-content:center}
+.mbg.on{display:flex}
+.modal{background:var(--s1);border:1px solid var(--bd);border-radius:14px;width:560px;max-width:96vw;max-height:88vh;overflow-y:auto;padding:20px}
+.drow{display:flex;gap:8px;margin-bottom:7px}
+.dlbl{width:110px;flex-shrink:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--mut)}
+.dval{font-size:11px;font-family:monospace;flex:1;word-break:break-word}
+.dsec{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--acc);margin:12px 0 7px;padding-bottom:4px;border-bottom:1px solid var(--bd)}
+/* Scan overlay */
+.scan-ov{display:none;position:fixed;inset:0;background:#0f1117;z-index:1000;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+/* Toast */
+.toast{position:fixed;bottom:16px;right:16px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:10px 14px;font-size:11px;font-weight:600;transform:translateY(60px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:999;pointer-events:none}
+.toast.on{transform:translateY(0);opacity:1}
+/* Site setup overlay */
+.site-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;align-items:center;justify-content:center}
+.site-ov.on{display:flex}
+.site-modal{background:var(--s1);border:1px solid var(--bd);border-radius:16px;padding:32px;width:420px;max-width:96vw;text-align:center}
+.site-modal h2{font-size:20px;font-weight:800;margin-bottom:8px;color:var(--acc)}
+.site-modal p{font-size:13px;color:var(--mut);margin-bottom:20px;line-height:1.6}
+.site-input{width:100%;background:var(--s2);border:2px solid var(--acc);border-radius:8px;color:var(--txt);padding:12px 14px;font-size:16px;outline:none;text-align:center;font-weight:700;margin-bottom:12px;font-family:monospace}
+.site-btn{width:100%;padding:12px;border-radius:8px;border:none;background:var(--acc);color:#0f1117;font-weight:700;font-size:14px;cursor:pointer}
+.site-btn:hover{background:#f5c842}
+/* Print */
+@media print{
+  body,.hdr,.tabs,.sbar,.bulk-bar,.toast{background:#fff}
+  .hdr,.tabs,.sbar,.bulk-bar,.toast,#p-log,#p-reports,#p-manage,.split>div:first-child .card:last-child{display:none!important}
+  .split{display:block}
+  .tag-wrap{position:static}
+  .tag-preview-card{border:none;padding:0;background:#fff}
+  .tag-preview-title{display:none}
+  .tag{margin:0}
+  .btn-blue,.btn-acc,.btn-clear{display:none}
+  @page{size:2in 4in;margin:0}
+}
+@media(max-width:600px){.stats{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="logo">
+    <div class="logo-ic">↩️</div>
+    <div class="logo-txt">RMA<b>Vault</b> <span id="site-label" style="color:var(--mut);font-size:12px;font-weight:400"></span></div>
+  </div>
+  <div class="hdr-btns">
+    <button class="hdr-btn" onclick="exportCSV()">⬇️ Export CSV</button>
+    <button class="hdr-btn" onclick="changeSite()" style="border-color:var(--mut);color:var(--mut)" id="site-btn">🏢 <span id="site-btn-label">Set Site</span></button>
+    <button class="hdr-btn" onclick="openScanMode()" style="border-color:var(--blue);color:var(--blue)">📡 Scan Serials</button>
+    <div class="hdr-btn" style="border-color:var(--green);color:var(--green)">
+      <span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite"></span>Local Storage
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab on" onclick="goTab('import',this)">💬 Slack Import</button>
+  <button class="tab"    onclick="goTab('log',this)">📋 RMA Log</button>
+  <button class="tab"    onclick="goTab('reports',this)">📊 Reports</button>
+  <button class="tab"    onclick="goTab('manage',this)">⚙️ Manage</button>
+</div>
+
+<div class="body">
+
+<!-- ══ SLACK IMPORT ══ -->
+<div class="panel on" id="p-import">
+  <div class="split">
+    <div>
+      <div class="card">
+        <div class="card-title">💬 Paste Slack Ticket</div>
+        <textarea id="slackInput" style="min-height:200px;border-color:var(--blue)" placeholder="Paste raw Slack ticket text here…
+
+@Dawn Schimmel made an inventory adjustment
+Time: May 6th, 2026 at 9:17 AM EDT
+Owner: Albatross
+Part#: MMA4Z00-NS
+Movement: RMA Replacement
+Quantity: 1
+JIRA Ticket/PO #: https://…/SDA-51969
+If RMA- Bad Serial#: MT2424DM06819
+If RMA- New Serial#: MT2413NS19065
+Comments: …"></textarea>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px">
+          <button class="btn-acc" onclick="parseAndGenerate()">⚡ Parse &amp; Generate</button>
+          <button class="btn-clear" onclick="clearAll()">✕</button>
+        </div>
+      </div>
+      <div id="edit-fields" style="display:none">
+        <div class="card">
+          <div class="card-title">✏️ Review &amp; Edit — <span style="color:var(--acc)">Yellow = fill in manually</span></div>
+          <div class="g2">
+            <div class="fld full"><label>SDA / Jira #</label><input id="eSda" oninput="updateTag()"></div>
+            <div class="fld"><label>RMA # (fill later)</label><input id="eRma" class="editable" placeholder="Leave blank" oninput="updateTag()"></div>
+
+            <div class="fld"><label>Part # / SKU</label><input id="eSku" oninput="updateTag()"></div>
+            <div class="fld"><label>Vendor</label><input id="eVendor" oninput="updateTag()"></div>
+            <div class="fld"><label>Bad Serial #</label><input id="eSerial" oninput="updateTag()"></div>
+            <div class="fld"><label>New Serial #</label><input id="eSerialNew" oninput="updateTag()"></div>
+            <div class="fld"><label>Qty</label><input id="eQty" oninput="updateTag()"></div>
+            <div class="fld"><label>Processed by</label><input id="eOwner" oninput="updateTag()"></div>
+            <div class="fld"><label>Movement</label><input id="eMovement" oninput="updateTag()"></div>
+            <div class="fld"><label>Date (today)</label><input id="eDate" type="date" oninput="updateTag()"></div>
+            <div class="fld"><label>Slack Date</label><input id="eSlackDate" type="date" oninput="updateTag()"></div>
+            <div class="fld full"><label>Notes</label><input id="eNotes" oninput="updateTag()"></div>
+            <div class="fld full"><label>NetSuite URL (paste full URL from NetSuite)</label><input id="eNsId" class="editable" placeholder="https://7258820.app.netsuite.com/...&id=1081" oninput="onNsUrlInput()" onpaste="setTimeout(onNsUrlInput,50)" onchange="onNsUrlInput()"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+            <button class="btn-acc" onclick="saveToVault()">💾 Save to Vault</button>
+            <button class="btn-blue" onclick="window.print()">🖨️ Print Tag</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Tag preview -->
+    <div class="tag-wrap">
+      <div class="tag-preview-card">
+        <div class="tag-preview-title">🏷️ Tag Preview</div>
+        <div class="tag" id="tag">
+          <div class="tag-top">
+            <div>
+              <div style="font-size:6px;font-weight:800;text-transform:uppercase;color:#555;margin-bottom:2px">RMA #</div>
+              <div class="tag-rma-box" id="t-rma">&nbsp;</div>
+            </div>
+            <div style="text-align:right">
+              <div class="tag-vendor-lbl">Vendor</div>
+              <div class="tag-vendor-val" id="t-vendor">—</div>
+            </div>
+          </div>
+          <div class="tag-status" id="t-status-banner">
+            <div class="tag-status-txt" id="t-status-text">PENDING</div>
+          </div>
+          <div class="tag-row"><div class="tag-lbl">Part #</div><div class="tag-val big" id="t-sku">—</div></div>
+          <div class="tag-row"><div class="tag-lbl">Movement</div><div class="tag-val" id="t-movement">—</div></div>
+          <div class="tag-row"><div class="tag-lbl">Qty</div><div class="tag-val" id="t-qty">—</div></div>
+          <hr class="tag-divider">
+          <div class="tag-row"><div class="tag-lbl">Bad Serial</div><div class="tag-val" id="t-serial">—</div></div>
+          <div class="tag-row"><div class="tag-lbl">New Serial</div><div class="tag-val" id="t-serial-new">—</div></div>
+          <div class="tag-row"><div class="tag-lbl">SDA / Jira</div><div class="tag-val" id="t-sda">—</div></div>
+          <div class="tag-row"><div class="tag-lbl">Processed by</div><div class="tag-val" id="t-owner">—</div></div>
+          <div class="tag-row"><div class="tag-lbl">Notes</div><div class="tag-val" id="t-notes" style="font-size:8px;color:#444">—</div></div>
+          <div class="tag-row"><div class="tag-lbl">Date</div><div class="tag-val" id="t-date" style="font-size:8px;color:#444">—</div></div>
+          <hr class="tag-divider">
+          <div class="tag-bottom">
+            <div id="qr-container"></div>
+            <img src="data:image/jpeg;base64,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" alt="CoreWeave" style="height:22px;width:auto">
+          </div>
+        </div>
+        <button class="btn-blue" onclick="window.print()" style="margin-top:10px">🖨️ Print Tag</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ RMA LOG ══ -->
+<div class="panel" id="p-log">
+  <div class="stats" id="log-stats"></div>
+  <div class="sbar">
+    <input class="srch" id="logSearch" placeholder="Search RMA #, serial, Jira, owner, SKU…" oninput="renderLog()">
+    <select class="fsel" id="logStatus" onchange="renderLog()">
+      <option value="">All statuses</option>
+      <option value="pending">⏳ Pending</option>
+      <option value="return to vendor">📦 Return to Vendor</option>
+      <option value="scrap">🗑 Scrap</option>
+    </select>
+    <select class="fsel" id="logSort" onchange="renderLog()">
+      <option value="date-desc">Newest first</option>
+      <option value="date-asc">Oldest first</option>
+      <option value="rma-asc">RMA # ↑</option>
+    </select>
+  </div>
+  <!-- Bulk bar -->
+  <div class="bulk-bar" id="bulk-bar">
+    <span style="font-size:12px;color:var(--blue);font-weight:700" id="bulk-count">0 selected</span>
+    <input id="bulk-rma-input" placeholder="New RMA #…" style="background:var(--bg);border:1px solid var(--blue);border-radius:6px;color:var(--txt);padding:6px 10px;outline:none;font-family:monospace;font-size:12px;min-width:150px">
+    <button onclick="applyBulkRma()" style="padding:6px 12px;border-radius:6px;border:none;background:var(--blue);color:#fff;font-weight:700;font-size:12px;cursor:pointer">✅ Apply RMA #</button>
+    <button onclick="clearBulkSelection()" style="padding:6px 10px;border-radius:6px;border:1px solid var(--bd);background:transparent;color:var(--mut);font-size:12px;cursor:pointer">✕ Clear</button>
+  </div>
+  <div class="tblwrap"><div class="tblscroll"><table>
+    <thead><tr>
+      <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" style="cursor:pointer"></th>
+      <th>RMA #</th><th>Slack Date</th><th>SKU</th><th>Bad Serial</th><th>New Serial</th><th>Jira</th><th>Owner</th><th>Status</th><th></th>
+    </tr></thead>
+    <tbody id="log-tbody"></tbody>
+  </table></div>
+  <div class="rpt-empty" id="log-empty" style="display:none">No records yet.</div></div>
+</div>
+
+<!-- ══ REPORTS ══ -->
+<div class="panel" id="p-reports">
+  <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+    <select class="fsel" id="rpt-range" onchange="renderReports()">
+      <option value="all">All time</option>
+      <option value="30">Last 30 days</option>
+      <option value="60">Last 60 days</option>
+      <option value="90">Last 90 days</option>
+    </select>
+    <span id="rpt-summary" style="font-size:12px;color:var(--mut);font-family:monospace"></span>
+  </div>
+  <div class="rpt-grid">
+    <div class="rpt-card"><h3>🔧 By Tech</h3><div id="chart-tech"><div class="rpt-empty">No data</div></div></div>
+    <div class="rpt-card"><h3>📦 By Part #</h3><div id="chart-part"><div class="rpt-empty">No data</div></div></div>
+  </div>
+  <div class="rpt-grid">
+    <div class="rpt-card"><h3>🏭 By Vendor</h3><div id="chart-vendor"><div class="rpt-empty">No data</div></div></div>
+    <div class="rpt-card"><h3>🚦 By Status</h3><div id="chart-rstatus"><div class="rpt-empty">No data</div></div></div>
+  </div>
+  <div class="rpt-card" style="margin-bottom:14px"><h3>📅 By Month</h3><div id="chart-trend"><div class="rpt-empty">No data</div></div></div>
+  <div class="rpt-grid">
+    <div class="rpt-card"><h3>⚖️ Vendor Decision</h3><div id="chart-vdecision"><div class="rpt-empty">No data</div></div></div>
+    <div class="rpt-card"><h3>🔄 Movement</h3><div id="chart-movement"><div class="rpt-empty">No data</div></div></div>
+  </div>
+  <div class="rpt-card"><h3>📍 By Location</h3><div id="chart-location"><div class="rpt-empty">No location data yet.</div></div></div>
+</div>
+
+<!-- ══ MANAGE ══ -->
+<div class="panel" id="p-manage">
+  <div class="card">
+    <div class="card-title">⚡ Import JSON (from Claude)</div>
+    <textarea id="jsonInput" style="min-height:80px" placeholder='{"rma":"SDA-51330","date":"2026-05-19",...}'></textarea>
+    <button class="btn-acc" onclick="importJson()" style="margin-top:10px">⚡ Import JSON</button>
+  </div>
+  <div class="card" style="border-color:var(--red)">
+    <div class="card-title" style="color:var(--red)">🗑 Delete records by RMA #</div>
+    <input id="deleteRmaInput" placeholder="SDA-51330, SDA-51326" style="width:100%;background:var(--bg);border:1px solid var(--red);border-radius:6px;color:var(--txt);padding:7px 10px;outline:none;margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button onclick="deleteByRma()" style="padding:7px 14px;border-radius:6px;border:none;background:var(--red);color:#fff;font-weight:700;font-size:12px;cursor:pointer">🗑 Delete</button>
+      <span id="delete-status" style="font-size:11px;color:var(--mut)"></span>
+    </div>
+  </div>
+</div>
+
+</div><!-- /body -->
+
+<!-- Site name overlay -->
+<div class="site-ov" id="site-ov">
+  <div class="site-modal">
+    <div style="font-size:40px;margin-bottom:12px">🏢</div>
+    <h2>Welcome to RMAVault</h2>
+    <p>Enter your site name to get started.<br>This will appear in your header and on all records.</p>
+    <input class="site-input" id="site-input" placeholder="e.g. US-LNB01" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" onkeydown="if(event.key==='Enter')saveSiteName()">
+    <button class="site-btn" onclick="saveSiteName()">✅ Set Site Name</button>
+  </div>
+</div>
+
+<!-- Scan overlay -->
+<div class="scan-ov" id="scan-overlay">
+  <div style="width:100%;max-width:480px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-size:18px;font-weight:800;font-family:monospace;color:var(--blue)">📡 Serial Scan Mode</div>
+      <button onclick="closeScanMode()" style="background:var(--s2);border:1px solid var(--bd);border-radius:8px;color:var(--txt);padding:7px 12px;cursor:pointer">✕ Exit &amp; Save</button>
+    </div>
+    <div style="background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between">
+      <div><div style="font-size:9px;color:var(--mut);text-transform:uppercase;margin-bottom:3px">Assigned</div><div style="font-size:22px;font-weight:800;font-family:monospace;color:var(--acc)" id="scan-done">0</div></div>
+      <div style="text-align:center"><div style="font-size:9px;color:var(--mut);text-transform:uppercase;margin-bottom:3px">Total</div><div style="font-size:22px;font-weight:800;font-family:monospace;color:var(--txt)" id="scan-total">0</div></div>
+      <div style="text-align:right"><div style="font-size:9px;color:var(--mut);text-transform:uppercase;margin-bottom:3px">Remaining</div><div style="font-size:22px;font-weight:800;font-family:monospace;color:var(--mut)" id="scan-remaining">0</div></div>
+    </div>
+    <div style="background:var(--s2);border:2px solid var(--blue);border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:9px;color:var(--mut);text-transform:uppercase;margin-bottom:5px">Next RMA without serial</div>
+      <div id="scan-target-rma" style="font-size:18px;font-weight:800;font-family:monospace;color:var(--blue)">—</div>
+      <div id="scan-target-info" style="font-size:11px;color:var(--mut);margin-top:3px">—</div>
+    </div>
+    <div style="background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:9px;color:var(--mut);text-transform:uppercase;margin-bottom:5px">Scan bad serial</div>
+      <input id="scan-input" type="text" placeholder="Scan QR code…" style="width:100%;background:var(--bg);border:2px solid var(--blue);border-radius:8px;color:var(--txt);padding:12px;font-size:16px;font-family:monospace;outline:none" onkeydown="handleScanKey(event,'bad')">
+      <div style="font-size:9px;color:var(--mut);text-transform:uppercase;margin:8px 0 5px">Scan new serial (optional)</div>
+      <input id="scan-input-new" type="text" placeholder="Scan replacement…" style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:8px;color:var(--txt);padding:10px;font-size:14px;font-family:monospace;outline:none" onkeydown="handleScanKey(event,'new')">
+      <div id="scan-feedback" style="margin-top:8px;font-size:12px;min-height:16px;color:var(--green)"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="skipScanTarget()" style="flex:1;padding:10px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;color:var(--mut);font-size:12px;cursor:pointer;font-weight:600">⏭ Skip</button>
+      <button onclick="undoLastScan()" id="scan-undo-btn" style="flex:1;padding:10px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;color:var(--mut);font-size:12px;cursor:pointer;font-weight:600" disabled>↩ Undo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 id="modal-title" style="font-size:15px;font-weight:700">RMA Details</h3>
+      <div style="display:flex;gap:8px">
+        <button onclick="editFromModal()" style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--txt);padding:5px 10px;cursor:pointer;font-size:12px">✏️ Edit</button>
+        <button onclick="closeModal()" style="background:none;border:none;color:var(--mut);font-size:20px;cursor:pointer;line-height:1">✕</button>
+      </div>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const VAULT_KEY = 'rmavault_v4';
+const CHART_COLORS = ['#f0b429','#3b82f6','#22c55e','#a78bfa','#ef4444','#fb923c','#34d399','#60a5fa','#facc15'];
+let rows = [];
+let editingId = null;
+let currentModalId = null;
+let scanQueue = [], scanHistory = [];
+let toastT;
+let _tagStatus = 'pending';
+
+const SITE_KEY = 'rmavault_site';
+
+function getSiteName() { return localStorage.getItem(SITE_KEY)||''; }
+
+function saveSiteName() {
+  const name = document.getElementById('site-input').value.trim().toUpperCase();
+  if(!name) { showToast('⚠️ Please enter a site name.'); return; }
+  localStorage.setItem(SITE_KEY, name);
+  document.getElementById('site-ov').classList.remove('on');
+  applySiteName(name);
+  showToast('✅ Site set to '+name);
+}
+
+function applySiteName(name) {
+  const el = document.getElementById('site-label');
+  if(el) el.textContent = name ? '— '+name : '';
+  const btn = document.getElementById('site-btn-label');
+  if(btn) btn.textContent = name || 'Set Site';
+}
+
+function load() {
+  try { const d=localStorage.getItem(VAULT_KEY); if(d) rows=JSON.parse(d); } catch(e){rows=[];}
+  const site = getSiteName();
+  if(!site) {
+    document.getElementById('site-ov').classList.add('on');
+    setTimeout(()=>document.getElementById('site-input').focus(), 100);
+  } else {
+    applySiteName(site);
+  }
+  renderLog(); renderStats();
+}
+function persist() { try{localStorage.setItem(VAULT_KEY,JSON.stringify(rows));}catch(e){showToast('⚠️ Storage full');} }
+function genId() { return 'rma_'+Date.now()+'_'+Math.random().toString(36).slice(2,6); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function goTab(id,btn) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('p-'+id).classList.add('on');
+  btn.classList.add('on');
+  if(id==='log') renderLog();
+  if(id==='reports') renderReports();
+}
+
+// ── SLACK PARSER ──────────────────────────────────────────
+function parseAndGenerate() {
+  let raw = document.getElementById('slackInput').value.trim();
+  if(!raw) return;
+  raw = raw.replace(/:[a-z0-9_+-]+:/gi,' ');
+  raw = raw.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu,' ');
+  raw = raw.split('\n').map(l=>l.replace(/[ \t]+/g,' ').trim()).join('\n');
+  const get = (patterns) => {
+    for(const p of patterns){const m=raw.match(p);if(m&&m[1]&&m[1].trim())return m[1].trim().replace(/:[a-z0-9_+-]+:/gi,'').trim();}
+    return '';
+  };
+  const firstLine = raw.split('\n')[0];
+  const adjMatch = firstLine.match(/\[?([A-Za-z\'\s]+)\]?\s+made an inventory/i);
+  const processedBy = adjMatch ? adjMatch[1].trim() : get([/Owner[^:\n]*:\s*([^\n]+)/i]);
+  const jiraRaw = get([/JIRA[^:\n]*:[^\n]*(https?:\/\/[^\s\n]+)/i,/JIRA[^:\n]*:\s*([A-Z]+-\d+)/i,/PO[^:\n]*:[^\n]*(https?:\/\/[^\s\n]+)/i]);
+  const jiraMatch = jiraRaw.match(/(?:SDA|DO|JIRA|INC|REQ)-[\d]+/i)||jiraRaw.match(/[A-Z]+-\d+/);
+  const sda = jiraMatch ? jiraMatch[0].toUpperCase() : jiraRaw;
+  const dateRaw = get([/Time[^:\n]*:\s*([A-Za-z]+ \d+[a-z]{0,2},?\s*\d{4})/i]);
+  let slackDate='';
+  if(dateRaw){try{slackDate=new Date(dateRaw).toISOString().slice(0,10);}catch(e){}}
+  if(!slackDate) slackDate=new Date().toISOString().slice(0,10);
+  const today = new Date().toISOString().slice(0,10);
+  const skuRaw = get([/Part[^:\n]*:\s*([^\n]+)/i]);
+  const sku = skuRaw ? skuRaw.split(/\s+/)[0].replace(/[^A-Z0-9.-]/gi,'') : '';
+  const cleanSN = s => s ? s.replace(/\s+/g,'').trim() : '';
+  const badSN = cleanSN((raw.match(/Bad Serial[^:]*:\s*([A-Z0-9]+)/i)||raw.match(/If RMA[^\n]*Bad[^:]*:\s*([A-Z0-9]+)/i)||[])[1]||'');
+  const newSN = cleanSN((raw.match(/New Serial[^:]*:\s*([A-Z0-9]+)/i)||raw.match(/If RMA[^\n]*New[^:]*:\s*([A-Z0-9]+)/i)||[])[1]||'');
+  const skuUpper=(sku||'').toUpperCase();
+  const vendor = skuUpper.includes('MMA')||skuUpper.includes('MCX')||skuUpper.includes('NVIDIA') ? 'Nvidia Corporation' : '';
+  const qtyRaw = get([/Quantity[^:\n]*:\s*([^\n]+)/i]);
+  const qty = (qtyRaw.match(/\d+/)||['1'])[0];
+  const movRaw = get([/Movement[^:\n]*:\s*([^\n]+)/i]);
+  const movement = movRaw.replace(/^[^a-z]*/i,'').trim() || 'RMA Replacement';
+  const notes = get([/Comments[^:\n]*:\s*([^\n]+)/i]);
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
+  set('eSda',sda);set('eRma','');set('eSku',sku);set('eVendor',vendor);
+  set('eSerial',badSN);set('eSerialNew',newSN);set('eQty',qty);
+  set('eOwner',processedBy);set('eMovement',movement);set('eNotes',notes);
+  set('eDate',today);set('eSlackDate',slackDate);
+  document.getElementById('edit-fields').style.display='block';
+  _tagStatus='pending';
+  updateTag();
+}
+
+// ── TAG UPDATE ────────────────────────────────────────────
+function updateTag() {
+  const v=id=>document.getElementById(id)?.value||'';
+  const t=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val||'—';};
+  t('t-rma',v('eRma')||' ');t('t-vendor',v('eVendor'));
+  t('t-sku',v('eSku'));t('t-movement',v('eMovement'));
+  t('t-qty',v('eQty'));t('t-serial',v('eSerial'));
+  t('t-serial-new',v('eSerialNew'));t('t-sda',v('eSda'));
+  t('t-owner',v('eOwner'));t('t-notes',v('eNotes'));
+  t('t-date',v('eSlackDate')||v('eDate'));
+  updateTagBanner(_tagStatus||'pending');
+  const qrEl=document.getElementById('qr-container');
+  qrEl.innerHTML='';
+  const sda=v('eSda');
+  if(sda){try{new QRCode(qrEl,{text:sda,width:52,height:52,colorDark:'#111',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});}catch(e){}}
+}
+
+function updateTagBanner(status) {
+  _tagStatus=status;
+  const banner=document.getElementById('t-status-banner');
+  const text=document.getElementById('t-status-text');
+  if(!banner||!text) return;
+  const s={pending:{bg:'#fff',border:'#000',color:'#000',label:'PENDING'},'return to vendor':{bg:'#000',border:'#000',color:'#fff',label:'RETURN TO VENDOR'},scrap:{bg:'#000',border:'#000',color:'#fff',label:'SCRAP'}};
+  const st=s[status]||s.pending;
+  banner.style.background=st.bg;banner.style.borderColor=st.border;
+  text.style.color=st.color;text.textContent=st.label;
+}
+
+function clearAll() {
+  document.getElementById('slackInput').value='';
+  document.getElementById('edit-fields').style.display='none';
+  ['eSda','eRma','eSku','eVendor','eSerial','eSerialNew','eQty','eOwner','eMovement','eNotes','eDate','eSlackDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['t-rma','t-vendor','t-sku','t-movement','t-qty','t-serial','t-serial-new','t-sda','t-owner','t-notes','t-date'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
+  document.getElementById('qr-container').innerHTML='';
+  _tagStatus='pending';updateTagBanner('pending');
+}
+
+// ── SAVE TO VAULT ─────────────────────────────────────────
+function changeSite() {
+  const current = getSiteName();
+  document.getElementById('site-input').value = current;
+  document.getElementById('site-ov').classList.add('on');
+  setTimeout(()=>document.getElementById('site-input').focus(), 100);
+}
+
+function cleanNsUrl(url) {
+  if(!url) return '';
+  const match = url.match(/(https?:\/\/[^?]+\?[^&]*rectype=\d+[^&]*&id=\d+)/);
+  if(match) return match[1];
+  const idMatch = url.match(/(.*[?&]id=\d+)/);
+  if(idMatch) return idMatch[1];
+  return url;
+}
+
+function onNsUrlInput() {
+  const url = document.getElementById('eNsId')?.value?.trim()||'';
+  // Auto-fill RMA # from id= parameter
+  const idMatch = url.match(/[?&]id=(\d+)/);
+  if(idMatch) {
+    const rmaEl = document.getElementById('eRma');
+    if(rmaEl && !rmaEl.value) {
+      rmaEl.value = 'RMA-' + idMatch[1];
+      updateTag();
+    }
+  }
+}
+
+function saveToVault() {
+  const v=id=>document.getElementById(id)?.value?.trim()||'';
+  const sda=v('eSda');
+  if(sda&&rows.find(r=>r.jira===sda)){if(!confirm('SDA '+sda+' already exists. Add anyway?'))return;}
+  if(editingId) {
+    const i=rows.findIndex(x=>x.id===editingId);
+    if(i>=0){rows[i]={...rows[i],rma:v('eRma')||sda,date:v('eDate'),slackDate:v('eSlackDate'),sku:v('eSku'),serial:v('eSerial'),serialNew:v('eSerialNew'),qty:v('eQty'),vendor:v('eVendor'),vendorId:v('eVendor').toLowerCase().includes('nvidia')?'VEN00107':'',jira:sda,owner:v('eOwner'),movement:v('eMovement'),notes:v('eNotes'),nsId:cleanNsUrl(v('eNsId'))};}
+    editingId=null;showToast('✅ Record updated!');
+  } else {
+    rows.unshift({id:genId(),saved:new Date().toISOString(),site:getSiteName(),rma:v('eRma')||sda||('RMA-'+Date.now().toString().slice(-6)),date:v('eDate'),slackDate:v('eSlackDate'),status:'pending',tagStatus:'pending',subsidiary:'Coreweave, Inc',site:'',siteStatus:'',location:'',sku:v('eSku'),serial:v('eSerial'),serialNew:v('eSerialNew'),qty:v('eQty')||'1',price:'',returnQty:v('eQty')||'1',scrapQty:'0',reason:'Defective Item',resolution:'',vendorId:v('eVendor').toLowerCase().includes('nvidia')?'VEN00107':'',vendor:v('eVendor'),vendorDecision:'Decision Pending',vendorOwned:'No',rmaBin:'',rmaVendorBin:'',sparesLocation:'',spareBin:'',scrapBin:'',storedBin:'',jira:sda,invAdj:'',owner:v('eOwner'),movement:v('eMovement'),troubleshooting:'',notes:v('eNotes'),nsId:cleanNsUrl(v('eNsId'))});
+    showToast('✅ Saved to Vault!');
+  }
+  persist();renderLog();renderStats();
+  clearAll();
+}
+
+// ── RMA LOG ───────────────────────────────────────────────
+function renderStats() {
+  const tot=rows.length;
+  const pend=rows.filter(r=>!r.tagStatus||r.tagStatus==='pending').length;
+  const rtv=rows.filter(r=>r.tagStatus==='return to vendor').length;
+  const scrap=rows.filter(r=>r.tagStatus==='scrap').length;
+  const open=rows.filter(r=>r.status==='open'||r.status==='pending').length;
+  document.getElementById('log-stats').innerHTML=[
+    ['Total',tot,'var(--acc)'],['Pending',pend,'var(--mut)'],
+    ['Return to Vendor',rtv,'var(--blue)'],['Scrap',scrap,'var(--red)'],
+    ['Open in NetSuite',open,'var(--green)']
+  ].map(([l,v,c])=>`<div class="stat"><div class="stat-n" style="color:${c}">${v}</div><div class="stat-l">${l}</div></div>`).join('');
+}
+
+function renderLog() {
+  renderStats();
+  const q=(document.getElementById('logSearch')?.value||'').toLowerCase();
+  const sf=document.getElementById('logStatus')?.value||'';
+  const sort=document.getElementById('logSort')?.value||'date-desc';
+  let data=[...rows];
+  if(q) data=data.filter(r=>[r.rma,r.sku,r.serial,r.serialNew,r.jira,r.owner,r.notes,r.vendor].join(' ').toLowerCase().includes(q));
+  if(sf) data=data.filter(r=>(r.tagStatus||'pending')===sf);
+  if(sort==='date-desc') data.sort((a,b)=>(b.slackDate||b.date||'').localeCompare(a.slackDate||a.date||''));
+  else if(sort==='date-asc') data.sort((a,b)=>(a.slackDate||a.date||'').localeCompare(b.slackDate||b.date||''));
+  else if(sort==='rma-asc') data.sort((a,b)=>(a.rma||'').localeCompare(b.rma||''));
+  const empty=document.getElementById('log-empty');
+  if(!data.length){document.getElementById('log-tbody').innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  document.getElementById('log-tbody').innerHTML=data.map(r=>`<tr>
+    <td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-id="${r.id}" onchange="updateBulkBar()" style="cursor:pointer"></td>
+    <td onclick="event.stopPropagation()" style="white-space:nowrap">
+      <input value="${esc(r.rma||'')}" placeholder="Add RMA #"
+        onchange="updateRowRma('${r.id}',this.value)"
+        style="background:transparent;border:none;border-bottom:1px solid #2a3048;color:var(--blue);font-family:monospace;font-size:11px;font-weight:700;width:90px;outline:none;padding:1px 3px"
+        onfocus="this.style.borderBottomColor='var(--blue)'" onblur="this.style.borderBottomColor='#2a3048'">
+      ${r.rma?`<a href="https://7258820.app.netsuite.com/app/common/search/search.nl?searchtype=Custom&rectype=1683&q=${encodeURIComponent(r.rma)}" target="_blank" title="Open in NetSuite" style="color:var(--acc);text-decoration:none;font-size:10px;margin-left:3px">↗</a>`:''}
+    </td>
+    <td onclick="openModal('${r.id}')" style="font-family:monospace;color:var(--mut)">${r.slackDate||r.date||'—'}</td>
+    <td onclick="openModal('${r.id}')" style="font-family:monospace">${esc(r.sku||'—')}</td>
+    <td onclick="openModal('${r.id}')" style="font-family:monospace;color:var(--acc)">${esc(r.serial||'—')}</td>
+    <td onclick="openModal('${r.id}')" style="font-family:monospace;color:var(--green)">${esc(r.serialNew||'—')}</td>
+    <td onclick="openModal('${r.id}')" style="font-family:monospace;color:var(--purple)">${esc(r.jira||'—')}</td>
+    <td onclick="openModal('${r.id}')">${esc(r.owner||'—')}</td>
+    <td onclick="event.stopPropagation()">
+      <select onchange="updateTagStatus('${r.id}',this.value)" style="background:#1e2333;border:1px solid #2a3048;border-radius:6px;color:var(--acc);padding:3px 6px;font-size:11px;font-family:monospace;cursor:pointer">
+        <option value="pending" ${(!r.tagStatus||r.tagStatus==='pending')?'selected':''}>⏳ Pending</option>
+        <option value="return to vendor" ${r.tagStatus==='return to vendor'?'selected':''}>📦 Return to Vendor</option>
+        <option value="scrap" ${r.tagStatus==='scrap'?'selected':''}>🗑 Scrap</option>
+      </select>
+    </td>
+    <td onclick="event.stopPropagation()" style="white-space:nowrap">
+      <button class="act" onclick="reprintTag('${r.id}')" style="color:var(--green)" title="Reprint tag">🖨</button>
+      <button class="act" onclick="deleteRow('${r.id}')" title="Delete">✕</button>
+    </td>
+  </tr>`).join('');
+}
+
+function updateRowRma(id,rma){const r=rows.find(x=>x.id===id);if(r){r.rma=rma.trim();persist();}}
+function updateTagStatus(id,status){const r=rows.find(x=>x.id===id);if(r){r.tagStatus=status;persist();renderStats();showToast('Status: '+status.toUpperCase());}}
+function deleteRow(id){if(!confirm('Delete this record?'))return;rows=rows.filter(r=>r.id!==id);persist();renderLog();}
+
+function reprintTag(id) {
+  const r=rows.find(x=>x.id===id);if(!r)return;
+  const set=(elId,v)=>{const el=document.getElementById(elId);if(el)el.value=v||'';};
+  set('eSda',r.jira);set('eRma',r.rma);set('eSku',r.sku);set('eVendor',r.vendor);
+  set('eSerial',r.serial);set('eSerialNew',r.serialNew);set('eQty',r.qty);
+  set('eOwner',r.owner);set('eMovement',r.movement);set('eNotes',r.notes);
+  set('eDate',r.date);set('eSlackDate',r.slackDate);set('eNsId',r.nsId||'');
+  document.getElementById('edit-fields').style.display='block';
+  _tagStatus=r.tagStatus||'pending';
+  updateTag();
+  goTab('import',document.querySelectorAll('.tab')[0]);
+  setTimeout(()=>document.getElementById('tag').scrollIntoView({behavior:'smooth'}),100);
+  showToast('✅ Tag loaded — click Print Tag.');
+}
+
+// ── BULK EDIT ─────────────────────────────────────────────
+function updateBulkBar(){const c=document.querySelectorAll('.row-check:checked');const bar=document.getElementById('bulk-bar');bar.style.display=c.length?'flex':'none';document.getElementById('bulk-count').textContent=c.length+' selected';}
+function toggleSelectAll(cb){document.querySelectorAll('.row-check').forEach(c=>{c.checked=cb.checked;});updateBulkBar();}
+function applyBulkRma(){const rma=document.getElementById('bulk-rma-input').value.trim();if(!rma){showToast('⚠️ Enter RMA # first.');return;}let n=0;document.querySelectorAll('.row-check:checked').forEach(cb=>{const r=rows.find(x=>x.id===cb.dataset.id);if(r){r.rma=rma;n++;}});persist();renderLog();clearBulkSelection();showToast('✅ Updated RMA # on '+n+' records.');}
+function clearBulkSelection(){document.querySelectorAll('.row-check').forEach(c=>c.checked=false);const sa=document.getElementById('selectAll');if(sa)sa.checked=false;document.getElementById('bulk-bar').style.display='none';document.getElementById('bulk-rma-input').value='';}
+
+// ── MODAL ─────────────────────────────────────────────────
+function openModal(id){
+  const r=rows.find(x=>x.id===id);if(!r)return;
+  currentModalId=id;
+  document.getElementById('modal-title').textContent='↩️ '+(r.rma||r.jira||'RMA');
+  const row=(k,v)=>v?`<div class="drow"><div class="dlbl">${k}</div><div class="dval">${esc(v)}</div></div>`:'';
+  const jiraLink=r.jira&&r.jira.startsWith('SDA-')?`<div class="drow"><div class="dlbl">Jira / SDA</div><div class="dval"><a href="https://coreweave.atlassian.net/browse/${r.jira}" target="_blank" style="color:var(--purple);text-decoration:none;font-family:monospace">${esc(r.jira)} ↗</a></div></div>`:row('Jira / SDA',r.jira);
+  document.getElementById('modal-body').innerHTML=`
+    <div class="dsec">RMA Info</div>
+    ${row('RMA #',r.rma)}${row('Slack Date',r.slackDate)}${row('Date',r.date)}
+    ${row('Site',r.site)}${row('Location',r.location)}
+    <div class="dsec">Item</div>
+    ${row('SKU',r.sku)}${row('Bad Serial',r.serial)}${row('New Serial',r.serialNew)}
+    ${row('Qty',r.qty)}${row('Vendor',r.vendor)}${row('Movement',r.movement)}
+    <div class="dsec">Tracking</div>
+    ${jiraLink}${row('Owner',r.owner)}${row('Inv. Adjustment',r.invAdj)}
+    ${r.nsId?`<div class="drow"><div class="dlbl">NetSuite</div><div class="dval"><a href="${esc(r.nsId)}" target="_blank" style="color:var(--acc);text-decoration:none;font-family:monospace">Open in NetSuite ↗</a></div></div>`:''}
+    ${r.notes?`<div class="dsec">Notes</div><div style="font-size:11px;font-family:monospace;line-height:1.6">${esc(r.notes)}</div>`:''}`;
+  document.getElementById('mbg').classList.add('on');
+}
+function editFromModal(){
+  const r=rows.find(x=>x.id===currentModalId);if(!r)return;
+  closeModal();editingId=currentModalId;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
+  set('eSda',r.jira);set('eRma',r.rma);set('eSku',r.sku);set('eVendor',r.vendor);
+  set('eSerial',r.serial);set('eSerialNew',r.serialNew);set('eQty',r.qty);
+  set('eOwner',r.owner);set('eMovement',r.movement);set('eNotes',r.notes);
+  set('eDate',r.date);set('eSlackDate',r.slackDate);set('eNsId',r.nsId||'');
+  document.getElementById('edit-fields').style.display='block';
+  updateTag();
+  goTab('import',document.querySelectorAll('.tab')[0]);
+  showToast('✏️ Editing — save when done.');
+}
+function closeModal(){document.getElementById('mbg').classList.remove('on');}
+
+// ── IMPORT JSON ───────────────────────────────────────────
+function importJson(){
+  const raw=document.getElementById('jsonInput').value.trim();
+  if(!raw){showToast('⚠️ Paste JSON first.');return;}
+  try{
+    const parsed=JSON.parse(raw);const arr=Array.isArray(parsed)?parsed:[parsed];
+    let added=0,skipped=0;
+    for(const r of arr){
+      if(r.jira&&rows.find(x=>x.jira===r.jira)){if(!confirm('Jira '+r.jira+' exists. Add anyway?')){skipped++;continue;}}
+      r.id=genId();r.saved=r.saved||new Date().toISOString();
+      if(!r.status)r.status='open';
+      if(!r.tagStatus)r.tagStatus='pending';
+      rows.unshift(r);added++;
+    }
+    persist();renderLog();
+    document.getElementById('jsonInput').value='';
+    showToast('✅ Imported '+added+' record'+(added>1?'s':'')+'!');
+    if(added)goTab('log',document.querySelectorAll('.tab')[1]);
+  }catch(e){showToast('❌ Invalid JSON.');}
+}
+
+function deleteByRma(){
+  const input=document.getElementById('deleteRmaInput').value.trim();
+  if(!input){document.getElementById('delete-status').textContent='⚠️ Enter RMA numbers.';return;}
+  const toDelete=input.split(',').map(s=>s.trim()).filter(Boolean);
+  const before=rows.length;
+  rows=rows.filter(r=>!toDelete.includes(r.rma)&&!toDelete.includes(r.jira));
+  const deleted=before-rows.length;
+  persist();renderLog();
+  document.getElementById('deleteRmaInput').value='';
+  document.getElementById('delete-status').textContent='✅ Deleted '+deleted+' record'+(deleted!==1?'s':'');
+  showToast('🗑 Deleted '+deleted+'.');
+}
+
+// ── EXPORT ────────────────────────────────────────────────
+function exportCSV(){
+  if(!rows.length){showToast('⚠️ No records.');return;}
+  const h=['RMA #','Slack Date','Date','Status','Tag Status','SKU','Bad Serial','New Serial','Qty','Vendor','Jira','NetSuite ID','Owner','Movement','Location','Notes'];
+  const k=['rma','slackDate','date','status','tagStatus','sku','serial','serialNew','qty','vendor','jira','nsId','owner','movement','location','notes'];
+  const csv=[h.join(','),...rows.map(r=>k.map(k2=>`"${(r[k2]||'').toString().replace(/"/g,'""')}"`).join(','))].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='RMAVault_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();showToast('✅ Exported!');
+}
+
+// ── SCAN MODE ─────────────────────────────────────────────
+function openScanMode(){
+  scanQueue=rows.filter(r=>!r.serial||!r.serial.trim()).map(r=>r.id);
+  scanHistory=[];
+  if(!scanQueue.length){showToast('✅ All records have serials!');return;}
+  document.getElementById('scan-overlay').style.display='flex';
+  updateScanUI();setTimeout(()=>document.getElementById('scan-input').focus(),100);
+}
+function closeScanMode(){document.getElementById('scan-overlay').style.display='none';persist();renderLog();showToast('✅ Serials saved!');}
+function updateScanUI(){
+  const done=scanHistory.length,rem=scanQueue.length;
+  document.getElementById('scan-done').textContent=done;
+  document.getElementById('scan-total').textContent=done+rem;
+  document.getElementById('scan-remaining').textContent=rem;
+  document.getElementById('scan-undo-btn').disabled=!scanHistory.length;
+  if(!scanQueue.length){document.getElementById('scan-target-rma').textContent='🎉 All done!';document.getElementById('scan-input').disabled=true;return;}
+  const r=rows.find(x=>x.id===scanQueue[0]);
+  if(r){document.getElementById('scan-target-rma').textContent=r.rma||r.jira||'—';document.getElementById('scan-target-info').textContent=[r.vendor,r.sku,r.jira?'SDA:'+r.jira:''].filter(Boolean).join(' · ');}
+  document.getElementById('scan-input').disabled=false;
+}
+function handleScanKey(e,field){
+  if(e.key!=='Enter')return;const val=e.target.value.trim();if(!val)return;
+  if(field==='bad'){
+    const id=scanQueue[0];if(!id)return;scanQueue.shift();
+    const r=rows.find(x=>x.id===id);
+    if(r){scanHistory.push({id,prevSerial:r.serial||'',prevSerialNew:r.serialNew||''});r.serial=val;document.getElementById('scan-feedback').textContent='✅ '+val+' → '+(r.rma||r.jira);document.getElementById('scan-input-new').focus();}
+    e.target.value='';updateScanUI();
+  } else {
+    if(scanHistory.length){const last=scanHistory[scanHistory.length-1];const r=rows.find(x=>x.id===last.id);if(r)r.serialNew=val;}
+    e.target.value='';document.getElementById('scan-input').focus();
+  }
+}
+function skipScanTarget(){if(!scanQueue.length)return;scanQueue.push(scanQueue.shift());updateScanUI();}
+function undoLastScan(){if(!scanHistory.length)return;const last=scanHistory.pop();const r=rows.find(x=>x.id===last.id);if(r){r.serial=last.prevSerial;r.serialNew=last.prevSerialNew;}scanQueue.unshift(last.id);document.getElementById('scan-feedback').textContent='↩ Undone.';updateScanUI();document.getElementById('scan-input').focus();}
+
+// ── REPORTS ───────────────────────────────────────────────
+function getFilteredRows(){const days=parseInt(document.getElementById('rpt-range')?.value||'all');if(!days||isNaN(days))return rows;const cutoff=new Date();cutoff.setDate(cutoff.getDate()-days);return rows.filter(r=>{const d=new Date(r.slackDate||r.date||'');return d>=cutoff;});}
+function countBy(data,key){const map={};for(const r of data){const val=(r[key]||'Unknown').trim()||'Unknown';map[val]=(map[val]||0)+1;}return Object.entries(map).sort((a,b)=>b[1]-a[1]);}
+function renderBarChart(elId,entries){
+  const el=document.getElementById(elId);if(!el)return;
+  if(!entries.length){el.innerHTML='<div class="rpt-empty">No data</div>';return;}
+  const max=entries[0][1];
+  el.innerHTML=entries.slice(0,10).map(([label,count],i)=>`<div class="bar-row"><div class="bar-label" title="${label}">${label}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(count/max*100)}%;background:${CHART_COLORS[i%CHART_COLORS.length]}">${count}</div></div><div class="bar-count">${count}</div></div>`).join('');
+}
+function renderTrend(data){
+  const el=document.getElementById('chart-trend');if(!el)return;
+  const map={};for(const r of data){const d=r.slackDate||r.date||'';if(!d)continue;const m=d.slice(0,7);map[m]=(map[m]||0)+1;}
+  const entries=Object.entries(map).sort((a,b)=>a[0].localeCompare(b[0]));
+  if(!entries.length){el.innerHTML='<div class="rpt-empty">No data</div>';return;}
+  const max=Math.max(...entries.map(e=>e[1]));
+  el.innerHTML=`<div class="trend-wrap">${entries.map(([m,c])=>`<div class="trend-col"><div class="trend-count">${c}</div><div class="trend-bar" style="height:${Math.max(Math.round(c/max*60),3)}px"></div><div class="trend-label">${new Date(m+'-01').toLocaleDateString('en-US',{month:'short',year:'2-digit'})}</div></div>`).join('')}</div>`;
+}
+function renderReports(){
+  const data=getFilteredRows();
+  document.getElementById('rpt-summary').textContent=data.length+' RMAs';
+  renderBarChart('chart-tech',countBy(data,'owner'));
+  renderBarChart('chart-part',countBy(data,'sku'));
+  renderBarChart('chart-vendor',countBy(data,'vendor'));
+  renderBarChart('chart-rstatus',countBy(data,'tagStatus'));
+  renderBarChart('chart-vdecision',countBy(data,'vendorDecision'));
+  renderBarChart('chart-movement',countBy(data,'movement'));
+  renderTrend(data);
+  renderBarChart('chart-location',countBy(data.filter(r=>r.location&&r.location.trim()),'location'));
+}
+
+// ── TOAST ─────────────────────────────────────────────────
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),3500);}
+
+load();
+</script>
+</body>
+</html>
