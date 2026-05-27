@@ -69,7 +69,7 @@ textarea{background:var(--s2);border:1px solid var(--bd);border-radius:6px;color
 #qr-container{width:52px;height:52px;flex-shrink:0}
 #qr-container canvas,#qr-container img{width:52px!important;height:52px!important}
 /* Stats */
-.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
 .stat{background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:12px 14px}
 .stat-n{font-size:20px;font-weight:800;margin-bottom:2px}
 .stat-l{font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;font-weight:600}
@@ -130,16 +130,26 @@ tbody tr:hover td{background:var(--s2);cursor:pointer}
 .site-btn{width:100%;padding:12px;border-radius:8px;border:none;background:var(--acc);color:#0f1117;font-weight:700;font-size:14px;cursor:pointer}
 .site-btn:hover{background:#f5c842}
 /* Print */
+/* Print container - hidden on screen, shown on print */
+.print-only{display:none}
 @media print{
-  body,.hdr,.tabs,.sbar,.bulk-bar,.toast{background:#fff}
-  .hdr,.tabs,.sbar,.bulk-bar,.toast,#p-log,#p-reports,#p-manage,.split>div:first-child .card:last-child{display:none!important}
-  .split{display:block}
-  .tag-wrap{position:static}
-  .tag-preview-card{border:none;padding:0;background:#fff}
-  .tag-preview-title{display:none}
-  .tag{margin:0}
-  .btn-blue,.btn-acc,.btn-clear{display:none}
   @page{size:2in 4in;margin:0}
+  body>*{display:none!important}
+  .print-only{
+    display:flex!important;
+    flex-direction:column;
+    width:2in;height:4in;
+    position:fixed;top:0;left:0;
+    background:#fff;
+    padding:8px 10px;
+    font-family:'IBM Plex Mono',monospace;
+    color:#111;
+    overflow:hidden;
+  }
+  .print-only *{display:revert}
+  .print-only .tag-top{display:flex}
+  .print-only .tag-bottom{display:flex}
+  .print-only .tag-row{display:flex}
 }
 @media(max-width:600px){.stats{grid-template-columns:1fr 1fr}}
 </style>
@@ -210,6 +220,7 @@ Comments: …"></textarea>
             <div class="fld"><label>Date (today)</label><input id="eDate" type="date" oninput="updateTag()"></div>
             <div class="fld"><label>Slack Date</label><input id="eSlackDate" type="date" oninput="updateTag()"></div>
             <div class="fld full"><label>Notes</label><input id="eNotes" oninput="updateTag()"></div>
+            <div class="fld full"><label>MRB # (return batch)</label><input id="eMrb" placeholder="e.g. MRB-2024-001"></div>
             <div class="fld full"><label>NetSuite URL (paste full URL from NetSuite)</label><input id="eNsId" class="editable" placeholder="https://7258820.app.netsuite.com/...&id=1081" oninput="onNsUrlInput()" onpaste="setTimeout(onNsUrlInput,50)" onchange="onNsUrlInput()"></div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
@@ -277,20 +288,24 @@ Comments: …"></textarea>
     <select class="fsel" id="logSort" onchange="renderLog()">
       <option value="date-desc">Newest first</option>
       <option value="date-asc">Oldest first</option>
+      <option value="age-desc">🔴 Oldest age first</option>
+      <option value="age-asc">🟢 Newest age first</option>
       <option value="rma-asc">RMA # ↑</option>
     </select>
   </div>
   <!-- Bulk bar -->
   <div class="bulk-bar" id="bulk-bar">
     <span style="font-size:12px;color:var(--blue);font-weight:700" id="bulk-count">0 selected</span>
-    <input id="bulk-rma-input" placeholder="New RMA #…" style="background:var(--bg);border:1px solid var(--blue);border-radius:6px;color:var(--txt);padding:6px 10px;outline:none;font-family:monospace;font-size:12px;min-width:150px">
+    <input id="bulk-rma-input" placeholder="New RMA #…" style="background:var(--bg);border:1px solid var(--blue);border-radius:6px;color:var(--txt);padding:6px 10px;outline:none;font-family:monospace;font-size:12px;min-width:130px">
     <button onclick="applyBulkRma()" style="padding:6px 12px;border-radius:6px;border:none;background:var(--blue);color:#fff;font-weight:700;font-size:12px;cursor:pointer">✅ Apply RMA #</button>
+    <input id="bulk-mrb-input" placeholder="MRB # (return batch)…" style="background:var(--bg);border:1px solid #fb923c;border-radius:6px;color:var(--txt);padding:6px 10px;outline:none;font-family:monospace;font-size:12px;min-width:160px">
+    <button onclick="applyBulkMrb()" style="padding:6px 12px;border-radius:6px;border:none;background:#fb923c;color:#0f1117;font-weight:700;font-size:12px;cursor:pointer">📦 Apply MRB + Return to Vendor</button>
     <button onclick="clearBulkSelection()" style="padding:6px 10px;border-radius:6px;border:1px solid var(--bd);background:transparent;color:var(--mut);font-size:12px;cursor:pointer">✕ Clear</button>
   </div>
   <div class="tblwrap"><div class="tblscroll"><table>
     <thead><tr>
       <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" style="cursor:pointer"></th>
-      <th>RMA #</th><th>Slack Date</th><th>SKU</th><th>Bad Serial</th><th>New Serial</th><th>Jira</th><th>Owner</th><th>Status</th><th></th>
+      <th>RMA #</th><th>Slack Date</th><th>SKU</th><th>Bad Serial</th><th>New Serial</th><th>Jira</th><th>Owner</th><th>MRB #</th><th>Status</th><th></th>
     </tr></thead>
     <tbody id="log-tbody"></tbody>
   </table></div>
@@ -322,6 +337,7 @@ Comments: …"></textarea>
     <div class="rpt-card"><h3>🔄 Movement</h3><div id="chart-movement"><div class="rpt-empty">No data</div></div></div>
   </div>
   <div class="rpt-card"><h3>📍 By Location</h3><div id="chart-location"><div class="rpt-empty">No location data yet.</div></div></div>
+  <div class="rpt-card" style="margin-bottom:14px"><h3>⏱ Pending to MRB (days)</h3><div id="chart-aging"><div class="rpt-empty">No data yet.</div></div></div>
 </div>
 
 <!-- ══ MANAGE ══ -->
@@ -400,6 +416,9 @@ Comments: …"></textarea>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Print only tag -->
+<div class="print-only" id="print-tag"></div>
 
 <script>
 const VAULT_KEY = 'rmavault_v4';
@@ -530,7 +549,7 @@ function updateTagBanner(status) {
 function clearAll() {
   document.getElementById('slackInput').value='';
   document.getElementById('edit-fields').style.display='none';
-  ['eSda','eRma','eSku','eVendor','eSerial','eSerialNew','eQty','eOwner','eMovement','eNotes','eDate','eSlackDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['eSda','eRma','eSku','eVendor','eSerial','eSerialNew','eQty','eOwner','eMovement','eNotes','eDate','eSlackDate','eNsId','eMrb'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['t-rma','t-vendor','t-sku','t-movement','t-qty','t-serial','t-serial-new','t-sda','t-owner','t-notes','t-date'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
   document.getElementById('qr-container').innerHTML='';
   _tagStatus='pending';updateTagBanner('pending');
@@ -543,6 +562,25 @@ function changeSite() {
   document.getElementById('site-ov').classList.add('on');
   setTimeout(()=>document.getElementById('site-input').focus(), 100);
 }
+
+function beforePrint() {
+  const src = document.getElementById('tag');
+  const dst = document.getElementById('print-tag');
+  if(!src || !dst) return;
+  // Copy innerHTML
+  dst.innerHTML = src.innerHTML;
+  // Replace canvas (QR code) with image
+  const srcCanvas = src.querySelector('canvas');
+  const dstCanvas = dst.querySelector('canvas');
+  if(srcCanvas && dstCanvas) {
+    const img = document.createElement('img');
+    img.src = srcCanvas.toDataURL('image/png');
+    img.style.width = '52px';
+    img.style.height = '52px';
+    dstCanvas.parentNode.replaceChild(img, dstCanvas);
+  }
+}
+window.addEventListener('beforeprint', beforePrint);
 
 function saveTagAsPdf() {
   const tag = document.getElementById('tag');
@@ -588,20 +626,23 @@ function saveTagAsPng() {
 
 function cleanNsUrl(url) {
   if(!url) return '';
-  const match = url.match(/(https?:\/\/[^?]+\?[^&]*rectype=\d+[^&]*&id=\d+)/);
-  if(match) return match[1];
-  const idMatch = url.match(/(.*[?&]id=\d+)/);
-  if(idMatch) return idMatch[1];
+  const base = url.match(/https?:\/\/[^?]+\.nl/);
+  if(!base) return url;
+  const idM = url.match(/[?&]id=(\d+)/);
+  const rtM = url.match(/[?&]rectype=(\d+)/);
+  if(idM && rtM) return base[0] + '?id=' + idM[1] + '&rectype=' + rtM[1];
+  if(idM) return base[0] + '?id=' + idM[1];
   return url;
 }
 
 function onNsUrlInput() {
   const url = document.getElementById('eNsId')?.value?.trim()||'';
-  // Auto-fill RMA # from id= parameter
+  if(!url) return;
+  // Auto-fill RMA # from id= parameter only if RMA field is empty
   const idMatch = url.match(/[?&]id=(\d+)/);
   if(idMatch) {
     const rmaEl = document.getElementById('eRma');
-    if(rmaEl && !rmaEl.value) {
+    if(rmaEl && !rmaEl.value.trim()) {
       rmaEl.value = 'RMA-' + idMatch[1];
       updateTag();
     }
@@ -614,10 +655,10 @@ function saveToVault() {
   if(sda&&rows.find(r=>r.jira===sda)){if(!confirm('SDA '+sda+' already exists. Add anyway?'))return;}
   if(editingId) {
     const i=rows.findIndex(x=>x.id===editingId);
-    if(i>=0){rows[i]={...rows[i],rma:v('eRma')||sda,date:v('eDate'),slackDate:v('eSlackDate'),sku:v('eSku'),serial:v('eSerial'),serialNew:v('eSerialNew'),qty:v('eQty'),vendor:v('eVendor'),vendorId:v('eVendor').toLowerCase().includes('nvidia')?'VEN00107':'',jira:sda,owner:v('eOwner'),movement:v('eMovement'),notes:v('eNotes'),nsId:cleanNsUrl(v('eNsId'))};}
+    if(i>=0){rows[i]={...rows[i],rma:v('eRma')||sda,date:v('eDate'),slackDate:v('eSlackDate'),sku:v('eSku'),serial:v('eSerial'),serialNew:v('eSerialNew'),qty:v('eQty'),vendor:v('eVendor'),vendorId:v('eVendor').toLowerCase().includes('nvidia')?'VEN00107':'',jira:sda,owner:v('eOwner'),movement:v('eMovement'),notes:v('eNotes'),nsId:cleanNsUrl(v('eNsId')),mrb:v('eMrb')};}
     editingId=null;showToast('✅ Record updated!');
   } else {
-    rows.unshift({id:genId(),saved:new Date().toISOString(),site:getSiteName(),rma:v('eRma')||sda||('RMA-'+Date.now().toString().slice(-6)),date:v('eDate'),slackDate:v('eSlackDate'),status:'pending',tagStatus:'pending',subsidiary:'Coreweave, Inc',site:'',siteStatus:'',location:'',sku:v('eSku'),serial:v('eSerial'),serialNew:v('eSerialNew'),qty:v('eQty')||'1',price:'',returnQty:v('eQty')||'1',scrapQty:'0',reason:'Defective Item',resolution:'',vendorId:v('eVendor').toLowerCase().includes('nvidia')?'VEN00107':'',vendor:v('eVendor'),vendorDecision:'Decision Pending',vendorOwned:'No',rmaBin:'',rmaVendorBin:'',sparesLocation:'',spareBin:'',scrapBin:'',storedBin:'',jira:sda,invAdj:'',owner:v('eOwner'),movement:v('eMovement'),troubleshooting:'',notes:v('eNotes'),nsId:cleanNsUrl(v('eNsId'))});
+    rows.unshift({id:genId(),saved:new Date().toISOString(),site:getSiteName(),rma:v('eRma')||sda||('RMA-'+Date.now().toString().slice(-6)),date:v('eDate'),slackDate:v('eSlackDate'),status:'pending',tagStatus:'pending',subsidiary:'Coreweave, Inc',site:'',siteStatus:'',location:'',sku:v('eSku'),serial:v('eSerial'),serialNew:v('eSerialNew'),qty:v('eQty')||'1',price:'',returnQty:v('eQty')||'1',scrapQty:'0',reason:'Defective Item',resolution:'',vendorId:v('eVendor').toLowerCase().includes('nvidia')?'VEN00107':'',vendor:v('eVendor'),vendorDecision:'Decision Pending',vendorOwned:'No',rmaBin:'',rmaVendorBin:'',sparesLocation:'',spareBin:'',scrapBin:'',storedBin:'',jira:sda,invAdj:'',owner:v('eOwner'),movement:v('eMovement'),troubleshooting:'',notes:v('eNotes'),nsId:cleanNsUrl(v('eNsId')),mrb:v('eMrb')});
     showToast('✅ Saved to Vault!');
   }
   persist();renderLog();renderStats();
@@ -629,13 +670,40 @@ function renderStats() {
   const tot=rows.length;
   const pend=rows.filter(r=>!r.tagStatus||r.tagStatus==='pending').length;
   const rtv=rows.filter(r=>r.tagStatus==='return to vendor').length;
+  const received=rows.filter(r=>r.tagStatus==='return received').length;
   const scrap=rows.filter(r=>r.tagStatus==='scrap').length;
   const open=rows.filter(r=>r.status==='open'||r.status==='pending').length;
-  document.getElementById('log-stats').innerHTML=[
-    ['Total',tot,'var(--acc)'],['Pending',pend,'var(--mut)'],
-    ['Return to Vendor',rtv,'var(--blue)'],['Scrap',scrap,'var(--red)'],
-    ['Open in NetSuite',open,'var(--green)']
-  ].map(([l,v,c])=>`<div class="stat"><div class="stat-n" style="color:${c}">${v}</div><div class="stat-l">${l}</div></div>`).join('');
+  const statFilters=[
+    ['Total',tot,'var(--acc)',''],
+    ['Pending',pend,'var(--mut)','pending'],
+    ['Return to Vendor',rtv,'var(--blue)','return to vendor'],
+    ['Return Received',received,'var(--green)','return received'],
+    ['Scrap',scrap,'var(--red)','scrap'],
+    ['Open in NetSuite',open,'var(--green)','']
+  ];
+  document.getElementById('log-stats').innerHTML=statFilters.map(([l,v,c,f])=>`
+    <div class="stat" onclick="filterByStatus('${f}')" style="cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='${c}'" onmouseout="this.style.borderColor='var(--bd)'">
+      <div class="stat-n" style="color:${c}">${v}</div>
+      <div class="stat-l">${l}</div>
+    </div>`).join('');
+}
+
+function agingDot(r) {
+  // Only show aging for active records (not received or scrap)
+  const done = r.tagStatus === 'return received' || r.tagStatus === 'scrap';
+  if(done) return '<span style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#2a3048"></span>';
+  if(!r.saved) return '<span style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#2a3048"></span>';
+  const days = Math.floor((Date.now() - new Date(r.saved).getTime()) / 86400000);
+  const color = days >= 60 ? '#ef4444' : days >= 30 ? '#f0b429' : '#22c55e';
+  const label = days >= 60 ? 'Overdue ('+days+' days)' : days >= 30 ? 'Needs attention ('+days+' days)' : 'Active ('+days+' days)';
+  return `<span title="${label}" style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:${color};flex-shrink:0;cursor:help"></span>`;
+}
+
+function filterByStatus(status) {
+  const sel = document.getElementById('logStatus');
+  if(sel) { sel.value = status; renderLog(); }
+  // Scroll to log table
+  document.getElementById('log-tbody').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 function renderLog() {
@@ -644,10 +712,12 @@ function renderLog() {
   const sf=document.getElementById('logStatus')?.value||'';
   const sort=document.getElementById('logSort')?.value||'date-desc';
   let data=[...rows];
-  if(q) data=data.filter(r=>[r.rma,r.sku,r.serial,r.serialNew,r.jira,r.owner,r.notes,r.vendor].join(' ').toLowerCase().includes(q));
+  if(q) data=data.filter(r=>[r.rma,r.sku,r.serial,r.serialNew,r.jira,r.owner,r.notes,r.vendor,r.mrb].join(' ').toLowerCase().includes(q));
   if(sf) data=data.filter(r=>(r.tagStatus||'pending')===sf);
   if(sort==='date-desc') data.sort((a,b)=>(b.slackDate||b.date||'').localeCompare(a.slackDate||a.date||''));
   else if(sort==='date-asc') data.sort((a,b)=>(a.slackDate||a.date||'').localeCompare(b.slackDate||b.date||''));
+  else if(sort==='age-desc') data.sort((a,b)=>new Date(a.saved||0)-new Date(b.saved||0));
+  else if(sort==='age-asc') data.sort((a,b)=>new Date(b.saved||0)-new Date(a.saved||0));
   else if(sort==='rma-asc') data.sort((a,b)=>(a.rma||'').localeCompare(b.rma||''));
   const empty=document.getElementById('log-empty');
   if(!data.length){document.getElementById('log-tbody').innerHTML='';empty.style.display='block';return;}
@@ -655,11 +725,11 @@ function renderLog() {
   document.getElementById('log-tbody').innerHTML=data.map(r=>`<tr>
     <td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-id="${r.id}" onchange="updateBulkBar()" style="cursor:pointer"></td>
     <td onclick="event.stopPropagation()" style="white-space:nowrap">
+      ${agingDot(r)}
       <input value="${esc(r.rma||'')}" placeholder="Add RMA #"
         onchange="updateRowRma('${r.id}',this.value)"
         style="background:transparent;border:none;border-bottom:1px solid #2a3048;color:var(--blue);font-family:monospace;font-size:11px;font-weight:700;width:90px;outline:none;padding:1px 3px"
         onfocus="this.style.borderBottomColor='var(--blue)'" onblur="this.style.borderBottomColor='#2a3048'">
-      ${r.rma?`<a href="https://7258820.app.netsuite.com/app/common/search/search.nl?searchtype=Custom&rectype=1683&q=${encodeURIComponent(r.rma)}" target="_blank" title="Open in NetSuite" style="color:var(--acc);text-decoration:none;font-size:10px;margin-left:3px">↗</a>`:''}
     </td>
     <td onclick="openModal('${r.id}')" style="font-family:monospace;color:var(--mut)">${r.slackDate||r.date||'—'}</td>
     <td onclick="openModal('${r.id}')" style="font-family:monospace">${esc(r.sku||'—')}</td>
@@ -691,7 +761,7 @@ function reprintTag(id) {
   set('eSda',r.jira);set('eRma',r.rma);set('eSku',r.sku);set('eVendor',r.vendor);
   set('eSerial',r.serial);set('eSerialNew',r.serialNew);set('eQty',r.qty);
   set('eOwner',r.owner);set('eMovement',r.movement);set('eNotes',r.notes);
-  set('eDate',r.date);set('eSlackDate',r.slackDate);set('eNsId',r.nsId||'');
+  set('eDate',r.date);set('eSlackDate',r.slackDate);set('eNsId',r.nsId||'');set('eMrb',r.mrb||'');
   document.getElementById('edit-fields').style.display='block';
   _tagStatus=r.tagStatus||'pending';
   updateTag();
@@ -721,7 +791,7 @@ function openModal(id){
     ${row('SKU',r.sku)}${row('Bad Serial',r.serial)}${row('New Serial',r.serialNew)}
     ${row('Qty',r.qty)}${row('Vendor',r.vendor)}${row('Movement',r.movement)}
     <div class="dsec">Tracking</div>
-    ${jiraLink}${row('Owner',r.owner)}${row('Inv. Adjustment',r.invAdj)}
+    ${jiraLink}${row('Owner',r.owner)}${r.mrb?`<div class='drow'><div class='dlbl'>MRB #</div><div class='dval' style='color:#fb923c;font-family:monospace'>${esc(r.mrb)}</div></div>`:''}${row('Inv. Adjustment',r.invAdj)}
     ${r.nsId?`<div class="drow"><div class="dlbl">NetSuite</div><div class="dval"><a href="${esc(r.nsId)}" target="_blank" style="color:var(--acc);text-decoration:none;font-family:monospace">Open in NetSuite ↗</a></div></div>`:''}
     ${r.notes?`<div class="dsec">Notes</div><div style="font-size:11px;font-family:monospace;line-height:1.6">${esc(r.notes)}</div>`:''}`;
   document.getElementById('mbg').classList.add('on');
@@ -733,7 +803,7 @@ function editFromModal(){
   set('eSda',r.jira);set('eRma',r.rma);set('eSku',r.sku);set('eVendor',r.vendor);
   set('eSerial',r.serial);set('eSerialNew',r.serialNew);set('eQty',r.qty);
   set('eOwner',r.owner);set('eMovement',r.movement);set('eNotes',r.notes);
-  set('eDate',r.date);set('eSlackDate',r.slackDate);set('eNsId',r.nsId||'');
+  set('eDate',r.date);set('eSlackDate',r.slackDate);set('eNsId',r.nsId||'');set('eMrb',r.mrb||'');
   document.getElementById('edit-fields').style.display='block';
   updateTag();
   goTab('import',document.querySelectorAll('.tab')[0]);
@@ -778,8 +848,8 @@ function deleteByRma(){
 // ── EXPORT ────────────────────────────────────────────────
 function exportCSV(){
   if(!rows.length){showToast('⚠️ No records.');return;}
-  const h=['RMA #','Slack Date','Date','Status','Tag Status','SKU','Bad Serial','New Serial','Qty','Vendor','Jira','NetSuite ID','Owner','Movement','Location','Notes'];
-  const k=['rma','slackDate','date','status','tagStatus','sku','serial','serialNew','qty','vendor','jira','nsId','owner','movement','location','notes'];
+  const h=['RMA #','Slack Date','Date','Status','Tag Status','MRB #','SKU','Bad Serial','New Serial','Qty','Vendor','Jira','NetSuite ID','Owner','Movement','Location','Notes'];
+  const k=['rma','slackDate','date','status','tagStatus','mrb','sku','serial','serialNew','qty','vendor','jira','nsId','owner','movement','location','notes'];
   const csv=[h.join(','),...rows.map(r=>k.map(k2=>`"${(r[k2]||'').toString().replace(/"/g,'""')}"`).join(','))].join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
@@ -850,9 +920,33 @@ function renderReports(){
   renderBarChart('chart-movement',countBy(data,'movement'));
   renderTrend(data);
   renderBarChart('chart-location',countBy(data.filter(r=>r.location&&r.location.trim()),'location'));
+  renderAgingChart(data);
 }
 
 // ── TOAST ─────────────────────────────────────────────────
+function renderAgingChart(data) {
+  const el = document.getElementById('chart-aging');
+  if(!el) return;
+  // Only records that have been assigned an MRB (pending → return to vendor)
+  const withMrb = data.filter(function(r){ return r.mrb && r.saved; });
+  if(!withMrb.length){ el.innerHTML='<div class="rpt-empty">No MRB records yet.</div>'; return; }
+  // Calculate days from saved to MRB assignment — approximate by current age
+  const buckets = {'0-15 days':0,'16-30 days':0,'31-60 days':0,'60+ days':0};
+  withMrb.forEach(function(r) {
+    const days = Math.floor((Date.now() - new Date(r.saved).getTime()) / 86400000);
+    if(days <= 15) buckets['0-15 days']++;
+    else if(days <= 30) buckets['16-30 days']++;
+    else if(days <= 60) buckets['31-60 days']++;
+    else buckets['60+ days']++;
+  });
+  const entries = Object.entries(buckets).filter(function(e){ return e[1] > 0; });
+  const colors = {'0-15 days':'#22c55e','16-30 days':'#f0b429','31-60 days':'#fb923c','60+ days':'#ef4444'};
+  const max = Math.max.apply(null, entries.map(function(e){ return e[1]; }));
+  el.innerHTML = entries.map(function(e) {
+    return '<div class="bar-row"><div class="bar-label">'+e[0]+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.round(e[1]/max*100)+'%;background:'+colors[e[0]]+'">'+e[1]+'</div></div><div class="bar-count">'+e[1]+'</div></div>';
+  }).join('');
+}
+
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),3500);}
 
 load();
