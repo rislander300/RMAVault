@@ -305,16 +305,31 @@ Comments: …"></textarea>
     </select>
   </div>
   <!-- Bulk bar -->
-  <div class="bulk-bar" id="bulk-bar">
-    <span style="font-size:12px;color:var(--blue);font-weight:700" id="bulk-count">0 selected</span>
-    <input id="bulk-rma-input" placeholder="New RMA #…" style="background:var(--bg);border:1px solid var(--blue);border-radius:6px;color:var(--txt);padding:6px 10px;outline:none;font-family:monospace;font-size:12px;min-width:130px">
-    <button onclick="applyBulkRma()" style="padding:6px 12px;border-radius:6px;border:none;background:var(--blue);color:#fff;font-weight:700;font-size:12px;cursor:pointer">✅ Apply RMA #</button>
-    <input id="bulk-mrb-input" placeholder="MRB # (return batch)…" style="background:var(--bg);border:1px solid #fb923c;border-radius:6px;color:var(--txt);padding:6px 10px;outline:none;font-family:monospace;font-size:12px;min-width:160px">
-    <button onclick="applyBulkMrb()" style="padding:6px 12px;border-radius:6px;border:none;background:#fb923c;color:#0f1117;font-weight:700;font-size:12px;cursor:pointer">📦 Apply MRB + Return to Vendor</button>
-    <div style="width:1px;background:var(--bd);align-self:stretch"></div>
-    <input id="bulk-tracking-input" placeholder="Tracking # (UPS/FedEx)…" style="background:var(--bg);border:1px solid #22c55e;border-radius:6px;color:var(--txt);padding:6px 10px;outline:none;font-family:monospace;font-size:12px;min-width:180px">
-    <button onclick="applyBulkTracking()" style="padding:6px 12px;border-radius:6px;border:none;background:#22c55e;color:#0f1117;font-weight:700;font-size:12px;cursor:pointer">🚚 Apply Tracking #</button>
-    <button onclick="clearBulkSelection()" style="padding:6px 10px;border-radius:6px;border:1px solid var(--bd);background:transparent;color:var(--mut);font-size:12px;cursor:pointer">✕ Clear</button>
+  <div class="bulk-bar" id="bulk-bar" style="flex-direction:column;align-items:stretch;gap:10px;padding:14px 16px">
+    <!-- Header row -->
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:13px;color:var(--blue);font-weight:800;font-family:monospace" id="bulk-count">0 selected</span>
+      <button onclick="clearBulkSelection()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--bd);background:transparent;color:var(--mut);font-size:11px;cursor:pointer">✕ Clear</button>
+    </div>
+    <!-- RMA row -->
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--blue);width:64px;flex-shrink:0">RMA #</span>
+      <input id="bulk-rma-input" placeholder="Enter new RMA #…" style="flex:1;background:var(--bg);border:1px solid var(--blue);border-radius:6px;color:var(--txt);padding:7px 10px;outline:none;font-family:monospace;font-size:12px">
+      <button onclick="applyBulkRma()" style="padding:7px 14px;border-radius:6px;border:none;background:var(--blue);color:#fff;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap">✅ Apply</button>
+    </div>
+    <!-- MRB row -->
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#fb923c;width:64px;flex-shrink:0">MRB #</span>
+      <input id="bulk-mrb-input" placeholder="Enter MRB #…" style="flex:1;background:var(--bg);border:1px solid #fb923c;border-radius:6px;color:var(--txt);padding:7px 10px;outline:none;font-family:monospace;font-size:12px">
+      <button onclick="applyBulkMrb('return to vendor')" style="padding:7px 14px;border-radius:6px;border:none;background:#fb923c;color:#0f1117;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap">📦 Return to Vendor</button>
+      <button onclick="applyBulkMrb('scrap')" style="padding:7px 14px;border-radius:6px;border:none;background:#ef4444;color:#fff;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap">🗑 Scrap</button>
+    </div>
+    <!-- Tracking row -->
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#22c55e;width:64px;flex-shrink:0">Tracking</span>
+      <input id="bulk-tracking-input" placeholder="Enter UPS/FedEx tracking #…" style="flex:1;background:var(--bg);border:1px solid #22c55e;border-radius:6px;color:var(--txt);padding:7px 10px;outline:none;font-family:monospace;font-size:12px">
+      <button onclick="applyBulkTracking()" style="padding:7px 14px;border-radius:6px;border:none;background:#22c55e;color:#0f1117;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap">🚚 Apply</button>
+    </div>
   </div>
   <div class="tblwrap"><div class="tblscroll"><table>
     <thead><tr>
@@ -374,6 +389,15 @@ Comments: …"></textarea>
         <button onclick="cancelXlsImport()" style="padding:8px 12px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--mut);font-size:12px;cursor:pointer">✕ Cancel</button>
         <span id="xls-status" style="font-size:11px;color:var(--mut)"></span>
       </div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:var(--blue)">
+    <div class="card-title" style="color:var(--blue)">🔧 Fix NetSuite Links</div>
+    <p style="font-size:11px;color:var(--mut);margin-bottom:10px;line-height:1.6">NetSuite changed their URL format. Click below to update all saved links to the new format (removes expired rectype parameter).</p>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button onclick="fixNsLinks()" style="padding:7px 14px;border-radius:6px;border:none;background:var(--blue);color:#fff;font-weight:700;font-size:12px;cursor:pointer">🔧 Fix All NS Links</button>
+      <span id="fix-ns-status" style="font-size:11px;color:var(--mut)"></span>
     </div>
   </div>
 
@@ -665,8 +689,8 @@ function cleanNsUrl(url) {
   if(!base) return url;
   const idM = url.match(/[?&]id=(\d+)/);
   const rtM = url.match(/[?&]rectype=(\d+)/);
-  if(idM && rtM) return base[0] + '?id=' + idM[1] + '&rectype=' + rtM[1];
-  if(idM) return base[0] + '?id=' + idM[1];
+  const rectype = rtM ? rtM[1] : '1683'; // default to 1683 if not in URL
+  if(idM) return base[0] + '?rectype=' + rectype + '&id=' + idM[1];
   return url;
 }
 
@@ -832,17 +856,22 @@ function applyBulkTracking(){
   showToast('✅ Applied tracking # to '+n+' records.');
 }
 
-function applyBulkMrb(){
+function applyBulkMrb(status){
   const mrb=document.getElementById('bulk-mrb-input').value.trim();
   if(!mrb){showToast('⚠️ Enter MRB # first.');return;}
+  const cleanStatus = String(status).trim().toLowerCase();
   let n=0;
   document.querySelectorAll('.row-check:checked').forEach(cb=>{
     const r=rows.find(x=>x.id===cb.dataset.id);
-    if(r){r.mrb=mrb;r.tagStatus='return to vendor';n++;}
+    if(r){r.mrb=mrb;r.tagStatus=cleanStatus;n++;}
   });
-  persist();renderLog();clearBulkSelection();
+  persist();
   document.getElementById('bulk-mrb-input').value='';
-  showToast('✅ Applied MRB '+mrb+' + Return to Vendor on '+n+' records.');
+  clearBulkSelection();
+  renderLog();
+  renderStats();
+  const label = cleanStatus==='scrap' ? '🗑 Scrap' : '📦 Return to Vendor';
+  showToast('✅ Applied MRB '+mrb+' + '+label+' on '+n+' records.');
 }
 
 function clearBulkSelection(){document.querySelectorAll('.row-check').forEach(c=>c.checked=false);const sa=document.getElementById('selectAll');if(sa)sa.checked=false;document.getElementById('bulk-bar').style.display='none';document.getElementById('bulk-rma-input').value='';}
@@ -902,6 +931,23 @@ function importJson(){
     showToast('✅ Imported '+added+' record'+(added>1?'s':'')+'!');
     if(added)goTab('log',document.querySelectorAll('.tab')[1]);
   }catch(e){showToast('❌ Invalid JSON.');}
+}
+
+function fixNsLinks(){
+  let fixed=0;
+  rows.forEach(function(r){
+    if(!r.nsId) return;
+    const idM = r.nsId.match(/[?&]id=(\d+)/);
+    const rtM = r.nsId.match(/[?&]rectype=(\d+)/);
+    const rectype = rtM ? rtM[1] : '1683';
+    if(idM){
+      const newUrl = 'https://7258820.app.netsuite.com/app/common/custom/custrecordentry.nl?rectype='+rectype+'&id='+idM[1];
+      if(r.nsId !== newUrl){ r.nsId=newUrl; fixed++; }
+    }
+  });
+  persist(); renderLog();
+  document.getElementById('fix-ns-status').textContent = '✅ Fixed '+fixed+' link'+(fixed!==1?'s':'');
+  showToast('✅ Fixed '+fixed+' NetSuite links.');
 }
 
 function deleteByRma(){
