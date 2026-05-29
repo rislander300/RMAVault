@@ -392,6 +392,28 @@ Comments: …"></textarea>
     </div>
   </div>
 
+  <div class="card" style="border-color:var(--purple)">
+    <div class="card-title" style="color:var(--purple)">⏱ SLA Targets (Business Days)</div>
+    <p style="font-size:11px;color:var(--mut);margin-bottom:12px;line-height:1.6">Set target business days for each KPI. Records exceeding targets will show in red.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="fld"><label>Slack → RMA (days)</label><input id="sla-ttl" type="number" min="0.5" step="0.5" placeholder="e.g. 1"></div>
+      <div class="fld"><label>RMA → MRB (days)</label><input id="sla-tot" type="number" min="1" step="1" placeholder="e.g. 30"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button onclick="saveSLAs()" style="padding:7px 14px;border-radius:6px;border:none;background:var(--purple);color:#fff;font-weight:700;font-size:12px;cursor:pointer">💾 Save SLA Targets</button>
+      <span id="sla-status" style="font-size:11px;color:var(--mut)"></span>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:var(--mut)">
+    <div class="card-title" style="color:var(--mut)">🏢 Stamp Site on All Records</div>
+    <p style="font-size:11px;color:var(--mut);margin-bottom:10px;line-height:1.6">Fill in the site name on all records that are missing it. Uses your current site setting.</p>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button onclick="stampSiteAll()" style="padding:7px 14px;border-radius:6px;border:none;background:var(--s2);border:1px solid var(--mut);color:var(--txt);font-weight:700;font-size:12px;cursor:pointer">🏢 Stamp Site on All</button>
+      <span id="stamp-status" style="font-size:11px;color:var(--mut)"></span>
+    </div>
+  </div>
+
   <div class="card" style="border-color:var(--blue)">
     <div class="card-title" style="color:var(--blue)">🔧 Fix NetSuite Links</div>
     <p style="font-size:11px;color:var(--mut);margin-bottom:10px;line-height:1.6">NetSuite changed their URL format. Click below to update all saved links to the new format (removes expired rectype parameter).</p>
@@ -418,8 +440,18 @@ Comments: …"></textarea>
   <div class="site-modal">
     <div style="font-size:40px;margin-bottom:12px">🏢</div>
     <h2>Welcome to RMAVault</h2>
-    <p>Enter your site name to get started.<br>This will appear in your header and on all records.</p>
-    <input class="site-input" id="site-input" placeholder="e.g. US-LNB01" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" onkeydown="if(event.key==='Enter')saveSiteName()">
+    <p>Enter your site name and timezone to get started.<br>This will appear in your header and on all records.</p>
+    <input class="site-input" id="site-input" placeholder="e.g. US-LNB01" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" onkeydown="if(event.key==='Enter')document.getElementById('site-tz').focus()">
+    <select id="site-tz" style="width:100%;background:var(--s2);border:2px solid var(--acc);border-radius:8px;color:var(--txt);padding:12px 14px;font-size:14px;outline:none;margin-bottom:12px;cursor:pointer">
+      <option value="">Select Timezone…</option>
+      <option value="America/New_York">Eastern (ET) — New York</option>
+      <option value="America/Chicago">Central (CT) — Chicago</option>
+      <option value="America/Denver">Mountain (MT) — Denver</option>
+      <option value="America/Los_Angeles">Pacific (PT) — Los Angeles</option>
+      <option value="America/Phoenix">Mountain no DST — Phoenix</option>
+      <option value="America/Anchorage">Alaska (AKT) — Anchorage</option>
+      <option value="Pacific/Honolulu">Hawaii (HST) — Honolulu</option>
+    </select>
     <button class="site-btn" onclick="saveSiteName()">✅ Set Site Name</button>
   </div>
 </div>
@@ -466,6 +498,7 @@ Comments: …"></textarea>
       </div>
     </div>
     <div id="modal-body"></div>
+    <div id="modal-kpi" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--bd)"></div>
   </div>
 </div>
 
@@ -492,14 +525,18 @@ let _tagStatus = 'pending';
 const SITE_KEY = 'rmavault_site';
 
 function getSiteName() { return localStorage.getItem(SITE_KEY)||''; }
+function getSiteTimezone() { return localStorage.getItem('rmavault_tz')||'America/New_York'; }
 
 function saveSiteName() {
   const name = document.getElementById('site-input').value.trim().toUpperCase();
+  const tz = document.getElementById('site-tz').value;
   if(!name) { showToast('⚠️ Please enter a site name.'); return; }
+  if(!tz) { showToast('⚠️ Please select a timezone.'); return; }
   localStorage.setItem(SITE_KEY, name);
+  localStorage.setItem('rmavault_tz', tz);
   document.getElementById('site-ov').classList.remove('on');
   applySiteName(name);
-  showToast('✅ Site set to '+name);
+  showToast('✅ Site set to '+name+' ('+tz+')');
 }
 
 function applySiteName(name) {
@@ -512,13 +549,16 @@ function applySiteName(name) {
 function load() {
   try { const d=localStorage.getItem(VAULT_KEY); if(d) rows=JSON.parse(d); } catch(e){rows=[];}
   const site = getSiteName();
+  // Restore timezone selection if set
+  const savedTz = localStorage.getItem('rmavault_tz');
+  if(savedTz) { const el=document.getElementById('site-tz'); if(el) el.value=savedTz; }
   if(!site) {
     document.getElementById('site-ov').classList.add('on');
     setTimeout(()=>document.getElementById('site-input').focus(), 100);
   } else {
     applySiteName(site);
   }
-  renderLog(); renderStats();
+  renderLog(); renderStats(); loadSLAs();
 }
 function persist() { try{localStorage.setItem(VAULT_KEY,JSON.stringify(rows));}catch(e){showToast('⚠️ Storage full');} }
 function genId() { return 'rma_'+Date.now()+'_'+Math.random().toString(36).slice(2,6); }
@@ -617,7 +657,10 @@ function clearAll() {
 // ── SAVE TO VAULT ─────────────────────────────────────────
 function changeSite() {
   const current = getSiteName();
+  const currentTz = localStorage.getItem('rmavault_tz')||'';
   document.getElementById('site-input').value = current;
+  const tzEl = document.getElementById('site-tz');
+  if(tzEl) tzEl.value = currentTz;
   document.getElementById('site-ov').classList.add('on');
   setTimeout(()=>document.getElementById('site-input').focus(), 100);
 }
@@ -813,7 +856,18 @@ function renderLog() {
 }
 
 function updateRowRma(id,rma){const r=rows.find(x=>x.id===id);if(r){r.rma=rma.trim();autoSave();}}
-function updateTagStatus(id,status){const r=rows.find(x=>x.id===id);if(r){r.tagStatus=status;autoSave();renderStats();showToast('Status: '+status.toUpperCase());}}
+function updateTagStatus(id,status){
+  const r=rows.find(x=>x.id===id);
+  if(r){
+    r.tagStatus=status;
+    // Keep status in sync
+    if(status==='return to vendor'||status==='return received') r.status='open';
+    else if(status==='scrap') r.status='resolved';
+    else if(status==='pending') r.status='pending';
+    autoSave();renderStats();
+    showToast('Status: '+status.toUpperCase());
+  }
+}
 function deleteRow(id){if(!confirm('Delete this record?'))return;rows=rows.filter(r=>r.id!==id);persist();renderLog();}
 
 function reprintTag(id) {
@@ -863,7 +917,7 @@ function applyBulkMrb(status){
   let n=0;
   document.querySelectorAll('.row-check:checked').forEach(cb=>{
     const r=rows.find(x=>x.id===cb.dataset.id);
-    if(r){r.mrb=mrb;r.tagStatus=cleanStatus;n++;}
+    if(r){r.mrb=mrb;r.tagStatus=cleanStatus;if(!r.mrbDate)r.mrbDate=new Date().toISOString();n++;}
   });
   persist();
   document.getElementById('bulk-mrb-input').value='';
@@ -895,6 +949,50 @@ function openModal(id){
     ${r.tracking?`<div class='drow'><div class='dlbl'>Tracking #</div><div class='dval'><a href='${trackingUrl(r.tracking)}' target='_blank' style='color:#22c55e;text-decoration:none;font-family:monospace'>${esc(r.tracking)} ↗</a></div></div>`:''}${row('Inv. Adjustment',r.invAdj)}
     ${r.nsId?`<div class="drow"><div class="dlbl">NetSuite</div><div class="dval"><a href="${esc(r.nsId)}" target="_blank" style="color:var(--acc);text-decoration:none;font-family:monospace">Open in NetSuite ↗</a></div></div>`:''}
     ${r.notes?`<div class="dsec">Notes</div><div style="font-size:11px;font-family:monospace;line-height:1.6">${esc(r.notes)}</div>`:''}`;
+  // KPI section
+  const slas = getSLAs();
+  const tz = getSiteTimezone();
+  const kpiRows = [];
+
+  const ticketToLogged = calcBusinessDays(r.slackDate, r.saved, tz);
+  const loggedToMrb = r.mrb && r.saved ? calcBusinessDays(r.saved, r.mrbDate||r.saved, tz) : null;
+
+  kpiRows.push('<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">');
+
+  // Slack → RMA (Slack date to vault save)
+  const ttl = ticketToLogged;
+  const ttlSla = slas.ticketToLogged||null;
+  kpiRows.push('<div style="background:var(--s2);border-radius:8px;padding:12px;text-align:center;border:1px solid '+(ttl!==null&&ttlSla&&ttl>ttlSla?'#ef4444':'var(--bd)')+'">'+
+    '<div style="font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⏱ Slack → RMA</div>'+
+    '<div style="font-size:18px;font-weight:800;color:'+bizDayColor(ttl,ttlSla)+'">'+formatBizDays(ttl)+'</div>'+
+    (ttlSla?'<div style="font-size:9px;color:var(--mut);margin-top:4px">SLA: '+ttlSla+'d</div>':'')+
+    '</div>');
+
+  // RMA → MRB (vault save to MRB assigned, or running time if pending)
+  const mrbSla = slas.totalOpen||null;
+  let rmaToMrbVal, rmaToMrbLabel, rmaToMrbColor;
+  if(r.mrb) {
+    // Has MRB — use mrbDate if available, else use now as approximation
+    const mrbEndDate = r.mrbDate || new Date().toISOString();
+    rmaToMrbVal = calcBusinessDays(r.saved, mrbEndDate, tz);
+    const isApprox = !r.mrbDate;
+    rmaToMrbLabel = formatBizDays(rmaToMrbVal) + (isApprox ? ' ↻' : '');
+    rmaToMrbColor = bizDayColor(rmaToMrbVal, mrbSla);
+  } else {
+    // No MRB — show running time since RMA was saved
+    rmaToMrbVal = calcBusinessDays(r.saved, new Date().toISOString(), tz);
+    rmaToMrbLabel = '↻ ' + formatBizDays(rmaToMrbVal) + ' (open)';
+    rmaToMrbColor = bizDayColor(rmaToMrbVal, mrbSla);
+  }
+  kpiRows.push('<div style="background:var(--s2);border-radius:8px;padding:12px;text-align:center;border:1px solid '+(rmaToMrbVal!==null&&mrbSla&&rmaToMrbVal>mrbSla?'#ef4444':'var(--bd)')+'">'+
+    '<div style="font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⏱ RMA → MRB</div>'+
+    '<div style="font-size:18px;font-weight:800;color:'+rmaToMrbColor+'">'+rmaToMrbLabel+'</div>'+
+    '<div style="font-size:9px;color:var(--mut);margin-top:4px">'+(r.mrb?'MRB: '+r.mrb:'No MRB assigned yet')+(mrbSla?' · SLA: '+mrbSla+'d':'')+'</div>'+
+    '</div>');
+
+  kpiRows.push('</div>');
+  document.getElementById('modal-kpi').innerHTML = '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--acc);margin-bottom:8px">⏱ KPIs (Business Days)</div>'+kpiRows.join('');
+
   document.getElementById('mbg').classList.add('on');
 }
 function editFromModal(){
@@ -933,6 +1031,33 @@ function importJson(){
   }catch(e){showToast('❌ Invalid JSON.');}
 }
 
+function saveSLAs(){
+  const ttl = parseFloat(document.getElementById('sla-ttl').value)||null;
+  const tot = parseFloat(document.getElementById('sla-tot').value)||null;
+  const slas = {ticketToLogged:ttl, totalOpen:tot};
+  localStorage.setItem('rmavault_slas', JSON.stringify(slas));
+  document.getElementById('sla-status').textContent = '✅ Saved';
+  showToast('✅ SLA targets saved.');
+}
+
+function loadSLAs(){
+  const slas = getSLAs();
+  const ttlEl=document.getElementById('sla-ttl');
+  const totEl=document.getElementById('sla-tot');
+  if(ttlEl&&slas.ticketToLogged) ttlEl.value=slas.ticketToLogged;
+  if(totEl&&slas.totalOpen) totEl.value=slas.totalOpen;
+}
+
+function stampSiteAll(){
+  const site=getSiteName();
+  if(!site){showToast('⚠️ Set your site name first.');return;}
+  let n=0;
+  rows.forEach(function(r){ if(!r.site){r.site=site;n++;} });
+  persist();
+  document.getElementById('stamp-status').textContent='✅ Stamped '+n+' records with '+site;
+  showToast('✅ Stamped '+n+' records with '+site);
+}
+
 function fixNsLinks(){
   let fixed=0;
   rows.forEach(function(r){
@@ -966,9 +1091,10 @@ function deleteByRma(){
 // ── EXPORT ────────────────────────────────────────────────
 function exportCSV(){
   if(!rows.length){showToast('⚠️ No records.');return;}
-  const h=['RMA #','Slack Date','Date','Status','Tag Status','MRB #','Tracking #','SKU','Bad Serial','New Serial','Qty','Vendor','Jira','NetSuite ID','Owner','Movement','Location','Notes'];
-  const k=['rma','slackDate','date','status','tagStatus','mrb','tracking','sku','serial','serialNew','qty','vendor','jira','nsId','owner','movement','location','notes'];
-  const csv=[h.join(','),...rows.map(r=>k.map(k2=>`"${(r[k2]||'').toString().replace(/"/g,'""')}"`).join(','))].join('\n');
+  const h=['Site','RMA #','Slack Date','Date','Saved Date','Status','Tag Status','MRB #','MRB Date','Tracking #','SKU','Bad Serial','New Serial','Qty','Vendor','Jira','NetSuite ID','Owner','Movement','Location','Notes'];
+  const k=['site','rma','slackDate','date','saved','status','tagStatus','mrb','mrbDate','tracking','sku','serial','serialNew','qty','vendor','jira','nsId','owner','movement','location','notes'];
+  const siteName=getSiteName();
+  const csv=[h.join(','),...rows.map(r=>k.map(k2=>`"${(k2==='site'?(r[k2]||siteName):r[k2]||'').toString().replace(/"/g,'""')}"`).join(','))].join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download='RMAVault_'+new Date().toISOString().slice(0,10)+'.csv';
@@ -1186,6 +1312,85 @@ function cancelXlsImport() {
   document.getElementById('xls-preview').style.display = 'none';
   document.getElementById('xlsImportFile').value = '';
   _xlsRows = []; _xlsHeaders = [];
+}
+
+// ── KPI / BUSINESS DAYS ENGINE ───────────────────────────
+// CoreWeave 2026 US Observed Holidays (YYYY-MM-DD)
+const CW_HOLIDAYS = new Set([
+  '2026-01-01','2026-01-19','2026-02-16','2026-05-25',
+  '2026-06-19','2026-07-03','2026-09-07','2026-11-11',
+  '2026-11-26','2026-11-27','2026-12-25'
+]);
+
+function isBusinessDay(date) {
+  const d = new Date(date);
+  const dow = d.getDay(); // 0=Sun,6=Sat
+  if(dow===0||dow===6) return false;
+  const key = d.toISOString().slice(0,10);
+  return !CW_HOLIDAYS.has(key);
+}
+
+// Calculate business days between two dates
+// Each business day = 8 hours (8am-4pm)
+// Returns decimal days (e.g. 1.5 = 1 day 4 hours)
+function calcBusinessDays(startStr, endStr, tz) {
+  if(!startStr||!endStr) return null;
+  const tz2 = tz || getSiteTimezone();
+  try {
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    if(isNaN(start)||isNaN(end)) return null;
+    if(end <= start) return 0;
+
+    let totalMinutes = 0;
+    const cur = new Date(start);
+
+    // Snap to business hours in site timezone
+    // Simplified: use UTC offset approximation
+    const BIZ_START = 8; // 8am
+    const BIZ_END = 16;  // 4pm
+    const BIZ_MINS = (BIZ_END - BIZ_START) * 60; // 480 mins per day
+
+    while(cur < end) {
+      if(isBusinessDay(cur)) {
+        const dayStart = new Date(cur);
+        dayStart.setHours(BIZ_START,0,0,0);
+        const dayEnd = new Date(cur);
+        dayEnd.setHours(BIZ_END,0,0,0);
+
+        const segStart = cur > dayStart ? cur : dayStart;
+        const segEnd = end < dayEnd ? end : dayEnd;
+
+        if(segEnd > segStart) {
+          totalMinutes += (segEnd - segStart) / 60000;
+        }
+      }
+      // Advance to next day
+      cur.setDate(cur.getDate()+1);
+      cur.setHours(BIZ_START,0,0,0);
+    }
+
+    return Math.round((totalMinutes / BIZ_MINS) * 10) / 10; // round to 1 decimal
+  } catch(e) { return null; }
+}
+
+function formatBizDays(days) {
+  if(days === null || days === undefined) return '—';
+  if(days === 0) return '< 1 day';
+  return days + ' business day' + (days !== 1 ? 's' : '');
+}
+
+function bizDayColor(days, sla) {
+  if(days === null) return 'var(--mut)';
+  if(!sla) return 'var(--txt)';
+  if(days <= sla * 0.75) return '#22c55e';
+  if(days <= sla) return '#f0b429';
+  return '#ef4444';
+}
+
+// Get SLA targets from localStorage (set by manager)
+function getSLAs() {
+  try { return JSON.parse(localStorage.getItem('rmavault_slas')||'{}'); } catch(e){ return {}; }
 }
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),3500);}
