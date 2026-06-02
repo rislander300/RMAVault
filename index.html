@@ -254,7 +254,7 @@ assignee: Da'wyna Pearson
           <input type="hidden" id="eJiraUrl">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
             <button class="btn-acc" onclick="saveToVault()">💾 Save to Vault</button>
-            <button class="btn-blue" onclick="addToQueue()">🖨️ Add to Queue</button>
+            <button class="btn-blue" onclick="window.print()">🖨️ Print Tag</button>
           </div>
         </div>
       </div>
@@ -295,17 +295,8 @@ assignee: Da'wyna Pearson
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
-          <button class="btn-blue" onclick="addToQueue()">🖨️ Add to Queue</button>
+          <button class="btn-blue" onclick="window.print()">🖨️ Print</button>
           <button onclick="saveTagAsPng()" style="padding:10px;border-radius:8px;border:none;background:#22c55e;color:#0f1117;font-weight:700;font-size:13px;cursor:pointer">📷 PNG</button>
-        </div>
-        <!-- Print Queue -->
-        <div id="queue-bar" style="display:none;margin-top:10px;background:var(--s2);border:1px solid var(--blue);border-radius:8px;padding:10px 12px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <span style="font-size:11px;font-weight:700;color:var(--blue)">🖨️ Print Queue: <span id="queue-count">0</span> tag(s)</span>
-            <button onclick="clearQueue()" style="background:none;border:none;color:var(--mut);font-size:11px;cursor:pointer">✕ Clear</button>
-          </div>
-          <div id="queue-list" style="font-size:10px;color:var(--mut);font-family:monospace;margin-bottom:8px;max-height:60px;overflow-y:auto"></div>
-          <button onclick="printQueue()" style="width:100%;padding:8px;border-radius:6px;border:none;background:var(--blue);color:#fff;font-weight:700;font-size:12px;cursor:pointer">🖨️ Print All Tags</button>
         </div>
         <button onclick="saveTagAsPdf()" style="width:100%;padding:10px;border-radius:8px;border:none;background:#a78bfa;color:#0f1117;font-weight:700;font-size:13px;cursor:pointer;margin-top:8px">📄 Save as PDF</button>
       </div>
