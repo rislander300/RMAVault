@@ -54,7 +54,7 @@ textarea{background:var(--s2);border:1px solid var(--bd);border-radius:6px;color
 .tag-wrap{position:sticky;top:64px}
 .tag-preview-card{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:16px}
 .tag-preview-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--acc);margin-bottom:12px}
-.tag{width:192px;height:384px;background:#fff;border:1px solid #aaa;padding:8px 10px;font-family:'IBM Plex Mono',monospace;color:#111;margin:0 auto;display:flex;flex-direction:column;overflow:hidden}
+.tag{width:192px;height:376px;background:#fff;border:1px solid #aaa;padding:6px 8px;font-family:'IBM Plex Mono',monospace;color:#111;margin:0 auto;display:flex;flex-direction:column;overflow:hidden}
 .tag-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;padding-bottom:5px;border-bottom:2px solid #222}
 .tag-rma-box{border:2px solid #222;border-radius:2px;padding:2px 6px;min-width:80px;min-height:18px;font-size:12px;font-weight:900;color:#111}
 .tag-vendor-lbl{font-size:6px;font-weight:800;text-transform:uppercase;color:#555;text-align:right}
@@ -134,15 +134,15 @@ tbody tr:hover td{background:var(--s2);cursor:pointer}
 /* Print container - hidden on screen, shown on print */
 .print-only{display:none}
 @media print{
-  @page{size:2in 4in;margin:0}
+  @page{size:2.44in 3.93in;margin:0}
   body>*{display:none!important}
   .print-only{
     display:flex!important;
     flex-direction:column;
-    width:2in;height:4in;
+    width:2.44in;height:3.93in;
     position:fixed;top:0;left:0;
     background:#fff;
-    padding:8px 10px;
+    padding:6px 8px;
     font-family:'IBM Plex Mono',monospace;
     color:#111;
     overflow:hidden;
@@ -162,6 +162,7 @@ tbody tr:hover td{background:var(--s2);cursor:pointer}
   <div class="logo">
     <div style="display:flex;flex-direction:column">
       <div class="logo-txt" style="font-size:16px">RMA<b>Vault</b></div>
+      <div style="font-size:9px;color:var(--mut);font-family:monospace;margin-top:1px">build 2026-06-02 08:32</div>
       <span id="site-label" style="color:var(--acc);font-size:11px;font-weight:600"></span>
     </div>
   </div>
@@ -240,6 +241,7 @@ assignee: Da'wyna Pearson
             <div class="fld"><label>Slack Date</label><input id="eSlackDate" type="date" oninput="updateTag()"></div>
             <div class="fld full"><label>Notes</label><input id="eNotes" oninput="updateTag()"></div>
             <div class="fld full"><label>MRB # (return batch)</label><input id="eMrb" placeholder="e.g. MRB-2024-001"></div>
+            <div class="fld full"><label>Escalation # (if escalated)</label><input id="eEscalation" placeholder="e.g. ESC-1234" style="border-color:var(--purple,#a78bfa)"></div>
             <div class="fld full"><label>Tracking # (UPS/FedEx)</label><input id="eTracking" placeholder="e.g. 1Z999AA10123456784"></div>
             <div class="fld full"><label>NetSuite URL — paste to auto-fill RMA #</label><input id="eNsId" class="editable" placeholder="https://7258820.app.netsuite.com/...&id=1081" oninput="onNsUrlInput()" onpaste="onNsUrlPaste(event)" onchange="onNsUrlInput()"></div>
           </div>
@@ -252,12 +254,13 @@ assignee: Da'wyna Pearson
           <input type="hidden" id="eJiraUrl">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
             <button class="btn-acc" onclick="saveToVault()">💾 Save to Vault</button>
-            <button class="btn-blue" onclick="printTag()">🖨️ Print Tag</button>
+            <button class="btn-blue" onclick="addToQueue()">🖨️ Add to Queue</button>
           </div>
         </div>
       </div>
     </div>
     <!-- Tag preview -->
+	
     <div class="tag-wrap">
       <div class="tag-preview-card">
         <div class="tag-preview-title">🏷️ Tag Preview</div>
@@ -292,8 +295,17 @@ assignee: Da'wyna Pearson
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
-          <button class="btn-blue" onclick="printTag()">🖨️ Print</button>
+          <button class="btn-blue" onclick="addToQueue()">🖨️ Add to Queue</button>
           <button onclick="saveTagAsPng()" style="padding:10px;border-radius:8px;border:none;background:#22c55e;color:#0f1117;font-weight:700;font-size:13px;cursor:pointer">📷 PNG</button>
+        </div>
+        <!-- Print Queue -->
+        <div id="queue-bar" style="display:none;margin-top:10px;background:var(--s2);border:1px solid var(--blue);border-radius:8px;padding:10px 12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:11px;font-weight:700;color:var(--blue)">🖨️ Print Queue: <span id="queue-count">0</span> tag(s)</span>
+            <button onclick="clearQueue()" style="background:none;border:none;color:var(--mut);font-size:11px;cursor:pointer">✕ Clear</button>
+          </div>
+          <div id="queue-list" style="font-size:10px;color:var(--mut);font-family:monospace;margin-bottom:8px;max-height:60px;overflow-y:auto"></div>
+          <button onclick="printQueue()" style="width:100%;padding:8px;border-radius:6px;border:none;background:var(--blue);color:#fff;font-weight:700;font-size:12px;cursor:pointer">🖨️ Print All Tags</button>
         </div>
         <button onclick="saveTagAsPdf()" style="width:100%;padding:10px;border-radius:8px;border:none;background:#a78bfa;color:#0f1117;font-weight:700;font-size:13px;cursor:pointer;margin-top:8px">📄 Save as PDF</button>
       </div>
@@ -312,6 +324,7 @@ assignee: Da'wyna Pearson
       <option value="return to vendor">📦 Return to Vendor</option>
       <option value="return received">✅ Return Received</option>
       <option value="scrap">🗑 Scrap</option>
+      <option value="escalated">🔺 Escalated</option>
     </select>
     <select class="fsel" id="logSort" onchange="renderLog()">
       <option value="date-desc">Newest first</option>
@@ -601,8 +614,8 @@ let _driveTimer;
 let _syncing = false;
 
 function buildCSV() {
-  const h=['Site','RMA #','Slack Date','Date','Saved Date','Status','Tag Status','MRB #','MRB Date','Tracking #','SKU','Bad Serial','New Serial','Qty','Vendor','Jira','NetSuite ID','Owner','Movement','Location','Asset Tag','Asset Model','Asset Rack','Asset DC','Asset Mfr','Notes'];
-  const k=['site','rma','slackDate','date','saved','status','tagStatus','mrb','mrbDate','tracking','sku','serial','serialNew','qty','vendor','jira','nsId','owner','movement','location','assetTag','assetModel','assetRack','assetDC','assetMfr','notes'];
+  const h=['Site','RMA #','Slack Date','Date','Saved Date','Status','Tag Status','MRB #','MRB Date','Tracking #','SKU','Bad Serial','New Serial','Qty','Vendor','Jira','NetSuite ID','Owner','Movement','Location','Asset Tag','Asset Model','Asset Rack','Asset DC','Asset Mfr','Escalation #','Notes'];
+  const k=['site','rma','slackDate','date','saved','status','tagStatus','mrb','mrbDate','tracking','sku','serial','serialNew','qty','vendor','jira','nsId','owner','movement','location','assetTag','assetModel','assetRack','assetDC','assetMfr','escalation','notes'];
   const siteName = getSiteName();
   return [h.join(','),...rows.map(r=>k.map(k2=>`"${(k2==='site'?(r[k2]||siteName):r[k2]||'').toString().replace(/"/g,'""')}"`).join(','))].join('\n');
 }
@@ -888,7 +901,7 @@ function updateTagBanner(status) {
   const banner=document.getElementById('t-status-banner');
   const text=document.getElementById('t-status-text');
   if(!banner||!text) return;
-  const s={pending:{bg:'#fff',border:'#000',color:'#000',label:'PENDING'},'return to vendor':{bg:'#000',border:'#000',color:'#fff',label:'RETURN TO VENDOR'},scrap:{bg:'#000',border:'#000',color:'#fff',label:'SCRAP'}};
+  const s={pending:{bg:'#fff',border:'#000',color:'#000',label:'PENDING'},'return to vendor':{bg:'#000',border:'#000',color:'#fff',label:'RETURN TO VENDOR'},scrap:{bg:'#000',border:'#000',color:'#fff',label:'SCRAP'},'return received':{bg:'#000',border:'#000',color:'#fff',label:'RETURN RECEIVED'},escalated:{bg:'#a78bfa',border:'#a78bfa',color:'#fff',label:'ESCALATED'}};
   const st=s[status]||s.pending;
   banner.style.background=st.bg;banner.style.borderColor=st.border;
   text.style.color=st.color;text.textContent=st.label;
@@ -915,35 +928,21 @@ function changeSite() {
 }
 
 function beforePrint() {
-  try {
-    const src = document.getElementById('tag');
-    const dst = document.getElementById('print-tag');
-    if(!src || !dst) { showToast('⚠️ Tag element not found'); return; }
-    dst.innerHTML = src.innerHTML;
-    const srcCanvas = src.querySelector('canvas');
-    const dstCanvas = dst.querySelector('canvas');
-    if(srcCanvas && dstCanvas) {
-      const img = document.createElement('img');
-      img.src = srcCanvas.toDataURL('image/png');
-      img.style.width = '52px';
-      img.style.height = '52px';
-      dstCanvas.parentNode.replaceChild(img, dstCanvas);
-    }
-  } catch(e) {
-    showToast('⚠️ Print prep error: ' + e.message);
+  const src = document.getElementById('tag');
+  const dst = document.getElementById('print-tag');
+  if(!src || !dst) return;
+  dst.innerHTML = src.innerHTML;
+  const srcCanvas = src.querySelector('canvas');
+  const dstCanvas = dst.querySelector('canvas');
+  if(srcCanvas && dstCanvas) {
+    const img = document.createElement('img');
+    img.src = srcCanvas.toDataURL('image/png');
+    img.style.width = '52px';
+    img.style.height = '52px';
+    dstCanvas.parentNode.replaceChild(img, dstCanvas);
   }
 }
-
-function printTag() {
-  const src = document.getElementById('tag');
-  if(!src) { showToast('⚠️ No tag to print'); return; }
-
-  // Replace canvas with image in the print-only div
-  beforePrint();
-
-  // Small delay to ensure DOM is ready, then print
-  setTimeout(function(){ window.print(); }, 100);
-}
+window.addEventListener('beforeprint', beforePrint);
 window.addEventListener('beforeprint', beforePrint);
 
 function saveTagAsPdf() {
@@ -970,22 +969,112 @@ function saveTagAsPdf() {
 function saveTagAsPng() {
   const tag = document.getElementById('tag');
   if(!tag) { showToast('⚠️ Generate a tag first.'); return; }
-  showToast('⏳ Saving image...');
+  showToast('⏳ Opening tag...');
   html2canvas(tag, {
-    scale: 4,  // High resolution for printing
+    scale: 4,
     backgroundColor: '#ffffff',
     useCORS: true,
     logging: false
   }).then(canvas => {
-    const link = document.createElement('a');
-    const sda = document.getElementById('eSda')?.value || 'tag';
-    link.download = 'RMA-Tag-' + sda + '.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    showToast('✅ Tag saved as PNG — open in P-Touch to print.');
+    // Open as data URL in new tab — no download, auto-opens, Cmd+P to print
+    const dataUrl = canvas.toDataURL('image/png');
+    const win = window.open('', '_blank');
+    if(win) {
+      win.document.write('<html><head><style>body{margin:0;background:#888;display:flex;align-items:center;justify-content:center;min-height:100vh}img{box-shadow:0 4px 20px rgba(0,0,0,.5)}@page{size:2.44in 3.93in;margin:0}@media print{body{background:#fff;display:block}img{width:2.44in;height:3.93in}}</style></head><body><img src="'+dataUrl+'"><script>document.addEventListener("keydown",function(e){if((e.metaKey||e.ctrlKey)&&e.key==="p"){window.print();}});<\/script></body></html>');
+      win.document.close();
+      showToast('✅ Tag open — press Cmd+P to print');
+    } else {
+      // Fallback to download
+      const link = document.createElement('a');
+      const sda = document.getElementById('eSda')?.value || 'tag';
+      link.download = 'RMA-Tag-' + sda + '.png';
+      link.href = dataUrl;
+      link.click();
+      showToast('✅ PNG saved — open in Preview and print');
+    }
   }).catch(err => {
-    showToast('❌ Could not save image. Try again.');
+    showToast('❌ Could not generate tag.');
   });
+}
+
+function printViaPng() {
+  beforePrint();
+  setTimeout(function(){ window.print(); }, 100);
+}
+
+// ── PRINT QUEUE ───────────────────────────────────────────
+let _printQueue = [];
+
+function addToQueue() {
+  const tag = document.getElementById('tag');
+  if(!tag) { showToast('⚠️ Generate a tag first.'); return; }
+  const sda = document.getElementById('eSda')?.value || '';
+  const rma = document.getElementById('eRma')?.value || sda || 'Tag';
+
+  // Capture tag as canvas data URL
+  html2canvas(tag, {
+    scale: 4,
+    backgroundColor: '#ffffff',
+    useCORS: true,
+    logging: false
+  }).then(function(canvas) {
+    _printQueue.push({ label: rma, dataUrl: canvas.toDataURL('image/png') });
+    updateQueueUI();
+    showToast('✅ Added to queue — ' + _printQueue.length + ' tag(s) ready');
+  }).catch(function(){ showToast('❌ Could not capture tag.'); });
+}
+
+function updateQueueUI() {
+  const bar = document.getElementById('queue-bar');
+  const count = document.getElementById('queue-count');
+  const list = document.getElementById('queue-list');
+  if(!bar) return;
+  if(_printQueue.length === 0) {
+    bar.style.display = 'none';
+  } else {
+    bar.style.display = 'block';
+    count.textContent = _printQueue.length;
+    list.innerHTML = _printQueue.map((t,i) =>
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0">' +
+      '<span>' + (i+1) + '. ' + t.label + '</span>' +
+      '<button onclick="removeFromQueue('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:10px;padding:0 4px">✕</button>' +
+      '</div>'
+    ).join('');
+  }
+}
+
+function removeFromQueue(i) {
+  _printQueue.splice(i, 1);
+  updateQueueUI();
+}
+
+function clearQueue() {
+  _printQueue = [];
+  updateQueueUI();
+  showToast('Queue cleared.');
+}
+
+function printQueue() {
+  if(!_printQueue.length) { showToast('⚠️ Queue is empty.'); return; }
+  showToast('⏳ Building print file...');
+
+  // Build a PDF with one label per page using jsPDF
+  const { jsPDF } = window.jspdf;
+  const W = 62;   // mm — 2.44in
+  const H = 100;  // mm — 3.93in
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, H] });
+
+  _printQueue.forEach(function(item, i) {
+    if(i > 0) pdf.addPage([W, H], 'portrait');
+    pdf.addImage(item.dataUrl, 'PNG', 0, 0, W, H);
+  });
+
+  // Save PDF — opens in Preview, user hits Cmd+P once for all labels
+  const count = _printQueue.length;
+  pdf.save('RMAVault-PrintQueue-' + count + 'tags.pdf');
+  showToast('✅ ' + count + ' tag(s) saved — open PDF in Preview → Cmd+P');
+  _printQueue = [];
+  updateQueueUI();
 }
 
 function cleanNsUrl(url) {
@@ -1030,10 +1119,10 @@ function saveToVault() {
   if(sda&&rows.find(r=>r.jira===sda)){if(!confirm('SDA '+sda+' already exists. Add anyway?'))return;}
   if(editingId) {
     const i=rows.findIndex(x=>x.id===editingId);
-    if(i>=0){rows[i]={...rows[i],rma:v('eRma')||sda,date:v('eDate'),slackDate:v('eSlackDate'),sku:v('eSku'),serial:v('eSerial'),serialNew:v('eSerialNew'),qty:v('eQty'),vendor:v('eVendor'),vendorId:v('eVendor').toLowerCase().includes('nvidia')?'VEN00107':'',jira:sda,jiraUrl:v('eJiraUrl')||rows[i].jiraUrl||'',owner:v('eOwner'),movement:v('eMovement'),notes:v('eNotes'),nsId:cleanNsUrl(v('eNsId')),mrb:v('eMrb'),tracking:v('eTracking'),assetTag:v('eAssetTag')||rows[i].assetTag||'',assetModel:v('eAssetModel')||rows[i].assetModel||'',assetRack:v('eAssetRack')||rows[i].assetRack||'',assetDC:v('eAssetDC')||rows[i].assetDC||'',assetMfr:v('eAssetMfr')||rows[i].assetMfr||''};}
+    if(i>=0){rows[i]={...rows[i],rma:v('eRma')||sda,date:v('eDate'),slackDate:v('eSlackDate'),sku:v('eSku'),serial:v('eSerial'),serialNew:v('eSerialNew'),qty:v('eQty'),vendor:v('eVendor'),vendorId:v('eVendor').toLowerCase().includes('nvidia')?'VEN00107':'',jira:sda,jiraUrl:v('eJiraUrl')||rows[i].jiraUrl||'',owner:v('eOwner'),movement:v('eMovement'),notes:v('eNotes'),nsId:cleanNsUrl(v('eNsId')),mrb:v('eMrb'),escalation:v('eEscalation')||rows[i].escalation||'',tracking:v('eTracking'),assetTag:v('eAssetTag')||rows[i].assetTag||'',assetModel:v('eAssetModel')||rows[i].assetModel||'',assetRack:v('eAssetRack')||rows[i].assetRack||'',assetDC:v('eAssetDC')||rows[i].assetDC||'',assetMfr:v('eAssetMfr')||rows[i].assetMfr||''};}
     editingId=null;showToast('✅ Record updated!');
   } else {
-    rows.unshift({id:genId(),saved:new Date().toISOString(),site:getSiteName(),rma:v('eRma')||sda||('RMA-'+Date.now().toString().slice(-6)),date:v('eDate'),slackDate:v('eSlackDate'),status:'pending',tagStatus:'pending',subsidiary:'Coreweave, Inc',site:'',siteStatus:'',location:v('eLocation')||'',sku:v('eSku'),serial:v('eSerial'),serialNew:v('eSerialNew'),qty:v('eQty')||'1',price:'',returnQty:v('eQty')||'1',scrapQty:'0',reason:'Defective Item',resolution:'',vendorId:v('eVendor').toLowerCase().includes('nvidia')?'VEN00107':'',vendor:v('eVendor'),vendorDecision:'Decision Pending',vendorOwned:'No',rmaBin:'',rmaVendorBin:'',sparesLocation:'',spareBin:'',scrapBin:'',storedBin:'',jira:sda,jiraUrl:v('eJiraUrl')||'',invAdj:'',owner:v('eOwner'),movement:v('eMovement'),troubleshooting:'',notes:v('eNotes'),nsId:cleanNsUrl(v('eNsId')),mrb:v('eMrb'),tracking:v('eTracking'),assetTag:v('eAssetTag')||'',assetModel:v('eAssetModel')||'',assetRack:v('eAssetRack')||'',assetDC:v('eAssetDC')||'',assetMfr:v('eAssetMfr')||''});
+    rows.unshift({id:genId(),saved:new Date().toISOString(),site:getSiteName(),rma:v('eRma')||sda||('RMA-'+Date.now().toString().slice(-6)),date:v('eDate'),slackDate:v('eSlackDate'),status:'pending',tagStatus:'pending',subsidiary:'Coreweave, Inc',site:'',siteStatus:'',location:v('eLocation')||'',sku:v('eSku'),serial:v('eSerial'),serialNew:v('eSerialNew'),qty:v('eQty')||'1',price:'',returnQty:v('eQty')||'1',scrapQty:'0',reason:'Defective Item',resolution:'',vendorId:v('eVendor').toLowerCase().includes('nvidia')?'VEN00107':'',vendor:v('eVendor'),vendorDecision:'Decision Pending',vendorOwned:'No',rmaBin:'',rmaVendorBin:'',sparesLocation:'',spareBin:'',scrapBin:'',storedBin:'',jira:sda,jiraUrl:v('eJiraUrl')||'',invAdj:'',owner:v('eOwner'),movement:v('eMovement'),troubleshooting:'',notes:v('eNotes'),nsId:cleanNsUrl(v('eNsId')),mrb:v('eMrb'),escalation:v('eEscalation')||'',tracking:v('eTracking'),assetTag:v('eAssetTag')||'',assetModel:v('eAssetModel')||'',assetRack:v('eAssetRack')||'',assetDC:v('eAssetDC')||'',assetMfr:v('eAssetMfr')||''});
     showToast('✅ Saved to Vault!');
   }
   persist();renderLog();renderStats();
@@ -1047,6 +1136,7 @@ function renderStats() {
   const rtv=rows.filter(r=>r.tagStatus==='return to vendor').length;
   const received=rows.filter(r=>r.tagStatus==='return received').length;
   const scrap=rows.filter(r=>r.tagStatus==='scrap').length;
+  const escalated=rows.filter(r=>r.tagStatus==='escalated').length;
   const open=rows.filter(r=>r.status==='open'||r.status==='pending').length;
   const statFilters=[
     ['Total',tot,'var(--acc)',''],
@@ -1054,6 +1144,7 @@ function renderStats() {
     ['Return to Vendor',rtv,'var(--blue)','return to vendor'],
     ['Return Received',received,'var(--green)','return received'],
     ['Scrap',scrap,'var(--red)','scrap'],
+    ['Escalated',escalated,'#a78bfa','escalated'],
     ['Open in NetSuite',open,'var(--green)','']
   ];
   document.getElementById('log-stats').innerHTML=statFilters.map(([l,v,c,f])=>`
@@ -1118,7 +1209,9 @@ function renderLog() {
       <select onchange="updateTagStatus('${r.id}',this.value)" style="background:#1e2333;border:1px solid #2a3048;border-radius:6px;color:var(--acc);padding:3px 6px;font-size:11px;font-family:monospace;cursor:pointer">
         <option value="pending" ${(!r.tagStatus||r.tagStatus==='pending')?'selected':''}>⏳ Pending</option>
         <option value="return to vendor" ${r.tagStatus==='return to vendor'?'selected':''}>📦 Return to Vendor</option>
+        <option value="return received" ${r.tagStatus==='return received'?'selected':''}>✅ Return Received</option>
         <option value="scrap" ${r.tagStatus==='scrap'?'selected':''}>🗑 Scrap</option>
+        <option value="escalated" ${r.tagStatus==='escalated'?'selected':''}>🔺 Escalated</option>
       </select>
     </td>
     <td onclick="event.stopPropagation()" style="white-space:nowrap">
@@ -1149,7 +1242,7 @@ function reprintTag(id) {
   set('eSda',r.jira);set('eRma',r.rma);set('eSku',r.sku);set('eVendor',r.vendor);
   set('eSerial',r.serial);set('eSerialNew',r.serialNew);set('eQty',r.qty);
   set('eOwner',r.owner);set('eMovement',r.movement);set('eNotes',r.notes);
-  set('eDate',r.date);set('eSlackDate',r.slackDate);set('eNsId',r.nsId||'');set('eMrb',r.mrb||'');set('eTracking',r.tracking||'');
+  set('eDate',r.date);set('eSlackDate',r.slackDate);set('eNsId',r.nsId||'');set('eMrb',r.mrb||'');set('eEscalation',r.escalation||'');set('eTracking',r.tracking||'');
   document.getElementById('edit-fields').style.display='block';
   _tagStatus=r.tagStatus||'pending';
   updateTag();
@@ -1228,7 +1321,7 @@ function openModal(id){
     ${row('SKU',r.sku)}${row('Bad Serial',r.serial)}${row('New Serial',r.serialNew)}
     ${row('Qty',r.qty)}${row('Vendor',r.vendor)}${row('Movement',r.movement)}
     <div class="dsec">Tracking</div>
-    ${jiraLink}${row('Owner',r.owner)}${r.mrb?`<div class='drow'><div class='dlbl'>MRB #</div><div class='dval' style='color:#fb923c;font-family:monospace'>${esc(r.mrb)}</div></div>`:''}
+    ${jiraLink}${row('Owner',r.owner)}${r.mrb?`<div class='drow'><div class='dlbl'>MRB #</div><div class='dval' style='color:#fb923c;font-family:monospace'>${esc(r.mrb)}</div></div>`:''} ${r.escalation?`<div class='drow'><div class='dlbl'>Escalation #</div><div class='dval' style='color:#a78bfa;font-weight:700;font-family:monospace'>${esc(r.escalation)}</div></div>`:''}
     ${r.tracking?`<div class='drow'><div class='dlbl'>Tracking #</div><div class='dval'><a href='${trackingUrl(r.tracking)}' target='_blank' style='color:#22c55e;text-decoration:none;font-family:monospace'>${esc(r.tracking)} ↗</a></div></div>`:''}${row('Inv. Adjustment',r.invAdj)}
     ${r.nsId?`<div class="drow"><div class="dlbl">NetSuite</div><div class="dval"><a href="${esc(r.nsId)}" target="_blank" style="color:var(--acc);text-decoration:none;font-family:monospace">Open in NetSuite ↗</a></div></div>`:''}
         ${r.notes?`<div class="dsec">Notes</div><div style="font-size:11px;font-family:monospace;line-height:1.6">${esc(r.notes)}</div>`:""}    ${assetSection}`;
@@ -1238,7 +1331,7 @@ function openModal(id){
   const kpiRows = [];
 
   const ticketToLogged = calcBusinessDays(r.slackDate, r.saved, tz);
-  const loggedToMrb = r.mrb && r.saved ? calcBusinessDays(r.saved, r.mrbDate||r.saved, tz) : null;
+  const loggedToMrb = r.mrb && r.slackDate ? calcBusinessDays(r.slackDate, r.mrbDate||r.slackDate, tz) : null;
 
   kpiRows.push('<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">');
 
@@ -1251,19 +1344,18 @@ function openModal(id){
     (ttlSla?'<div style="font-size:9px;color:var(--mut);margin-top:4px">SLA: '+ttlSla+'d</div>':'')+
     '</div>');
 
-  // RMA → MRB (vault save to MRB assigned, or running time if pending)
+  // RMA → MRB (slack date to MRB assigned, or running time if pending)
   const mrbSla = slas.totalOpen||null;
+  const rmaStart = r.slackDate || r.saved;
   let rmaToMrbVal, rmaToMrbLabel, rmaToMrbColor;
   if(r.mrb) {
-    // Has MRB — use mrbDate if available, else use now as approximation
     const mrbEndDate = r.mrbDate || new Date().toISOString();
-    rmaToMrbVal = calcBusinessDays(r.saved, mrbEndDate, tz);
+    rmaToMrbVal = calcBusinessDays(rmaStart, mrbEndDate, tz);
     const isApprox = !r.mrbDate;
     rmaToMrbLabel = formatBizDays(rmaToMrbVal) + (isApprox ? ' ↻' : '');
     rmaToMrbColor = bizDayColor(rmaToMrbVal, mrbSla);
   } else {
-    // No MRB — show running time since RMA was saved
-    rmaToMrbVal = calcBusinessDays(r.saved, new Date().toISOString(), tz);
+    rmaToMrbVal = calcBusinessDays(rmaStart, new Date().toISOString(), tz);
     rmaToMrbLabel = '↻ ' + formatBizDays(rmaToMrbVal) + ' (open)';
     rmaToMrbColor = bizDayColor(rmaToMrbVal, mrbSla);
   }
@@ -1374,8 +1466,8 @@ function deleteByRma(){
 // ── EXPORT ────────────────────────────────────────────────
 function exportCSV(){
   if(!rows.length){showToast('⚠️ No records.');return;}
-  const h=['Site','RMA #','Slack Date','Date','Saved Date','Status','Tag Status','MRB #','MRB Date','Tracking #','SKU','Bad Serial','New Serial','Qty','Vendor','Jira','NetSuite ID','Owner','Movement','Location','Asset Tag','Asset Model','Asset Rack','Asset DC','Asset Mfr','Notes'];
-  const k=['site','rma','slackDate','date','saved','status','tagStatus','mrb','mrbDate','tracking','sku','serial','serialNew','qty','vendor','jira','nsId','owner','movement','location','assetTag','assetModel','assetRack','assetDC','assetMfr','notes'];
+  const h=['Site','RMA #','Slack Date','Date','Saved Date','Status','Tag Status','MRB #','MRB Date','Tracking #','SKU','Bad Serial','New Serial','Qty','Vendor','Jira','NetSuite ID','Owner','Movement','Location','Asset Tag','Asset Model','Asset Rack','Asset DC','Asset Mfr','Escalation #','Notes'];
+  const k=['site','rma','slackDate','date','saved','status','tagStatus','mrb','mrbDate','tracking','sku','serial','serialNew','qty','vendor','jira','nsId','owner','movement','location','assetTag','assetModel','assetRack','assetDC','assetMfr','escalation','notes'];
   const siteName=getSiteName();
   const csv=[h.join(','),...rows.map(r=>k.map(k2=>`"${(k2==='site'?(r[k2]||siteName):r[k2]||'').toString().replace(/"/g,'""')}"`).join(','))].join('\n');
   const a=document.createElement('a');
