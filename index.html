@@ -603,9 +603,9 @@ function persist() {
   _driveTimer = setTimeout(function(){ syncToDrive(true); }, 3000);
 }
 
-// ── DRIVE SYNC ────────────────────────────────────────────
-const REGIONAL_FOLDER_ID = '1NyTxZWr_2yUCL3Tts4Yn-j_aY3mQQ3B8';
-const DRIVE_FILE_KEY = 'rmavault_drive_file_id'; // stores the Drive file ID once created
+// ── DRIVE SYNC (Google Apps Script) ─────────────────────
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsWVwg7Jdcfq55THq-jA_yueKyYgKa4k3BIjUIYGHu08RK70JhRvm5rYO8PTKzsfnlIA/exec';
+const DRIVE_FILE_KEY = 'rmavault_drive_file_id';
 let _driveTimer;
 let _syncing = false;
 
@@ -629,76 +629,21 @@ async function syncToDrive(silent=false) {
   try {
     const csv = buildCSV();
     const filename = 'RMAVault_' + siteName + '.csv';
-    const existingFileId = localStorage.getItem(DRIVE_FILE_KEY);
 
-    // Use Anthropic API to call Drive via MCP
-    const body = {
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 512,
-      system: 'You are a file upload assistant. Use the Google Drive MCP tool to upload or update a CSV file. Respond only with JSON: {"success": true, "fileId": "...", "fileUrl": "..."} or {"success": false, "error": "..."}',
-      messages: [{
-        role: 'user',
-        content: existingFileId
-          ? `Update the existing Google Drive file with ID "${existingFileId}" with this new CSV content. File name: "${filename}". Content:\n\n${csv}`
-          : `Create a new file named "${filename}" in the Google Drive folder with ID "${REGIONAL_FOLDER_ID}". It is a CSV file. Content:\n\n${csv}`
-      }],
-      mcp_servers: [{
-        type: 'url',
-        url: 'https://drivemcp.googleapis.com/mcp/v1',
-        name: 'google-drive'
-      }]
-    };
-
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ filename, csv }),
+      headers: { 'Content-Type': 'text/plain' }
     });
 
     const data = await resp.json();
-    // Extract result from MCP tool response
-    let result = null;
-    if(data.content) {
-      // Try to find a tool result block first, then text
-      const toolResult = data.content.find(b => b.type === 'mcp_tool_result');
-      const textBlock  = data.content.find(b => b.type === 'text');
-      const raw = toolResult?.content?.[0]?.text || textBlock?.text || '';
-      try {
-        const clean = raw.replace(/```json|```/g,'').trim();
-        // Find JSON object in response
-        const jsonMatch = clean.match(/\{[\s\S]*\}/);
-        if(jsonMatch) result = JSON.parse(jsonMatch[0]);
-      } catch(e) {}
-
-      // Also scan for file ID in tool_use inputs (create_file / update_file)
-      if(!result) {
-        const toolUse = data.content.find(b => b.type === 'mcp_tool_use');
-        if(toolUse?.input?.fileId || toolUse?.name) {
-          // Try to get fileId from tool result content
-          const tr = data.content.find(b => b.type === 'mcp_tool_result');
-          if(tr?.content?.[0]?.text) {
-            try {
-              const parsed = JSON.parse(tr.content[0].text);
-              if(parsed.id) result = { success: true, fileId: parsed.id, fileUrl: parsed.viewUrl||'' };
-            } catch(e) {}
-          }
-        }
-      }
-    }
-
-    if(result?.success && result.fileId) {
-      localStorage.setItem(DRIVE_FILE_KEY, result.fileId);
+    if(data.success) {
+      if(data.fileId) localStorage.setItem(DRIVE_FILE_KEY, data.fileId);
       localStorage.setItem('rmavault_last_sync', new Date().toISOString());
       if(!silent) showToast('✅ Synced to Regional Drive!');
       updateSyncStatus();
-    } else if(result?.success === false) {
-      if(!silent) showToast('❌ Sync failed: ' + (result.error||'Unknown error'));
     } else {
-      // Partial success — file may have been created, check tool results
-      const lastSync = localStorage.getItem('rmavault_last_sync');
-      localStorage.setItem('rmavault_last_sync', new Date().toISOString());
-      if(!silent) showToast('☁️ Sync attempted — check Drive folder.');
-      updateSyncStatus();
+      if(!silent) showToast('❌ Sync failed: ' + (data.error || 'Unknown error'));
     }
   } catch(e) {
     if(!silent) showToast('❌ Drive sync error: ' + e.message);
@@ -717,6 +662,7 @@ function updateSyncStatus() {
     btn.title = 'Last synced: ' + d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + timeStr;
   }
 }
+
 function genId() { return 'rma_'+Date.now()+'_'+Math.random().toString(36).slice(2,6); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -848,18 +794,9 @@ function parseAndGenerate() {
   const jiraRaw = get([/JIRA[^:\n]*:[^\n]*(https?:\/\/[^\s\n]+)/i,/JIRA[^:\n]*:\s*([A-Z]+-\d+)/i,/PO[^:\n]*:[^\n]*(https?:\/\/[^\s\n]+)/i]);
   const jiraMatch = jiraRaw.match(/(?:SDA|DO|JIRA|INC|REQ)-[\d]+/i)||jiraRaw.match(/[A-Z]+-\d+/);
   const sda = jiraMatch ? jiraMatch[0].toUpperCase() : jiraRaw;
-  const dateRaw = get([/Time[^:\n]*:\s*([A-Za-z]+ \d+[a-z]{0,2}[,\s]+\d{4}[^\n]*)/i]);
+  const dateRaw = get([/Time[^:\n]*:\s*([A-Za-z]+ \d+[a-z]{0,2},?\s*\d{4})/i]);
   let slackDate='';
-  if(dateRaw){
-    try{
-      const cleaned = dateRaw
-        .replace(/(\d+)(st|nd|rd|th)/gi,'$1')
-        .replace(/\s+at\s+/i,' ')
-        .replace(/\s+(EDT|EST|CDT|CST|MDT|MST|PDT|PST|UTC|GMT)[+-]?\d*/gi,'');
-      const d = new Date(cleaned);
-      if(!isNaN(d)) slackDate = d.toISOString().slice(0,10);
-    }catch(e){}
-  }
+  if(dateRaw){try{slackDate=new Date(dateRaw).toISOString().slice(0,10);}catch(e){}}
   if(!slackDate) slackDate=new Date().toISOString().slice(0,10);
   const today = new Date().toISOString().slice(0,10);
   const skuRaw = get([/Part[^:\n]*:\s*([^\n]+)/i]);
