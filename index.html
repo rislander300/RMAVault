@@ -207,6 +207,16 @@ tbody tr:hover td{background:var(--s2);cursor:pointer}
           <button id="mode-jira"  onclick="setPasteMode('jira')"  style="padding:5px 12px;border-radius:6px;border:1px solid var(--bd);background:transparent;color:var(--mut);font-size:10px;font-weight:700;cursor:pointer">🎫 Jira Bookmarklet</button>
           <span id="paste-mode-hint" style="font-size:10px;color:var(--mut);align-self:center;margin-left:4px">Auto-detects on paste</span>
         </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:8px">
+          <button id="slack-pull-btn" onclick="pullFromSlack()" style="padding:6px 14px;border-radius:6px;border:none;background:#4a154b;color:#fff;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px">
+            <span>🔔</span><span>Pull from Slack</span>
+          </button>
+          <div style="flex:1">
+            <div style="font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Channel</div>
+            <div id="slack-channel-name" style="font-size:11px;font-family:monospace;color:var(--acc)">—</div>
+          </div>
+          <div id="slack-pull-status" style="font-size:11px;color:var(--mut)"></div>
+        </div>
         <textarea id="slackInput" style="min-height:200px;border-color:var(--blue)" placeholder="Paste Slack ticket OR Jira bookmarklet output here…
 
 — Slack example —
@@ -488,7 +498,9 @@ assignee: Da'wyna Pearson
       <option value="America/Anchorage">Alaska (AKT) — Anchorage</option>
       <option value="Pacific/Honolulu">Hawaii (HST) — Honolulu</option>
     </select>
-    <button class="site-btn" onclick="saveSiteName()">✅ Set Site Name</button>
+    <input class="site-input" id="site-slack-channel" placeholder="Slack Channel ID (e.g. C085GMMV6J3)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="font-size:13px;margin-bottom:4px" onkeydown="if(event.key==='Enter')document.getElementById('site-btn-submit').click()">
+    <p style="font-size:10px;color:var(--mut);margin-bottom:12px">Find it in Slack: right-click channel → Copy link. The ID is the last part (e.g. …/archives/<b>C085GMMV6J3</b>)</p>
+    <button class="site-btn" id="site-btn-submit" onclick="saveSiteName()">✅ Set Site Name</button>
   </div>
 </div>
 
@@ -566,10 +578,12 @@ function getSiteTimezone() { return localStorage.getItem('rmavault_tz')||'Americ
 function saveSiteName() {
   const name = document.getElementById('site-input').value.trim().toUpperCase();
   const tz = document.getElementById('site-tz').value;
+  const slackChannel = document.getElementById('site-slack-channel').value.trim();
   if(!name) { showToast('⚠️ Please enter a site name.'); return; }
   if(!tz) { showToast('⚠️ Please select a timezone.'); return; }
   localStorage.setItem(SITE_KEY, name);
   localStorage.setItem('rmavault_tz', tz);
+  if(slackChannel) localStorage.setItem('rmavault_slack_channel', slackChannel);
   document.getElementById('site-ov').classList.remove('on');
   applySiteName(name);
   showToast('✅ Site set to '+name+' ('+tz+')');
@@ -580,6 +594,7 @@ function applySiteName(name) {
   if(el) el.textContent = name ? '— '+name : '';
   const btn = document.getElementById('site-btn-label');
   if(btn) btn.textContent = name || 'Set Site';
+  updateSlackChannelDisplay();
 }
 
 function load() {
@@ -588,6 +603,9 @@ function load() {
   // Restore timezone selection if set
   const savedTz = localStorage.getItem('rmavault_tz');
   if(savedTz) { const el=document.getElementById('site-tz'); if(el) el.value=savedTz; }
+  // Restore Slack channel ID if set
+  const savedCh = localStorage.getItem('rmavault_slack_channel');
+  if(savedCh) { const el=document.getElementById('site-slack-channel'); if(el) el.value=savedCh; }
   if(!site) {
     document.getElementById('site-ov').classList.add('on');
     setTimeout(()=>document.getElementById('site-input').focus(), 100);
@@ -603,9 +621,9 @@ function persist() {
   _driveTimer = setTimeout(function(){ syncToDrive(true); }, 3000);
 }
 
-// ── DRIVE SYNC (Google Apps Script) ─────────────────────
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsWVwg7Jdcfq55THq-jA_yueKyYgKa4k3BIjUIYGHu08RK70JhRvm5rYO8PTKzsfnlIA/exec';
-const DRIVE_FILE_KEY = 'rmavault_drive_file_id';
+// ── DRIVE SYNC ────────────────────────────────────────────
+const REGIONAL_FOLDER_ID = '1NyTxZWr_2yUCL3Tts4Yn-j_aY3mQQ3B8';
+const DRIVE_FILE_KEY = 'rmavault_drive_file_id'; // stores the Drive file ID once created
 let _driveTimer;
 let _syncing = false;
 
@@ -629,27 +647,217 @@ async function syncToDrive(silent=false) {
   try {
     const csv = buildCSV();
     const filename = 'RMAVault_' + siteName + '.csv';
+    const existingFileId = localStorage.getItem(DRIVE_FILE_KEY);
 
-    const resp = await fetch(APPS_SCRIPT_URL, {
+    // Use Anthropic API to call Drive via MCP
+    const body = {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 512,
+      system: 'You are a file upload assistant. Use the Google Drive MCP tool to upload or update a CSV file. Respond only with JSON: {"success": true, "fileId": "...", "fileUrl": "..."} or {"success": false, "error": "..."}',
+      messages: [{
+        role: 'user',
+        content: existingFileId
+          ? `Update the existing Google Drive file with ID "${existingFileId}" with this new CSV content. File name: "${filename}". Content:\n\n${csv}`
+          : `Create a new file named "${filename}" in the Google Drive folder with ID "${REGIONAL_FOLDER_ID}". It is a CSV file. Content:\n\n${csv}`
+      }],
+      mcp_servers: [{
+        type: 'url',
+        url: 'https://mcp.slack.com/mcp',
+        name: 'slack'
+      }]
+    };
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      body: JSON.stringify({ filename, csv }),
-      headers: { 'Content-Type': 'text/plain' }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
     });
 
     const data = await resp.json();
-    if(data.success) {
-      if(data.fileId) localStorage.setItem(DRIVE_FILE_KEY, data.fileId);
+    // Extract result from MCP tool response
+    let result = null;
+    if(data.content) {
+      // Try to find a tool result block first, then text
+      const toolResult = data.content.find(b => b.type === 'mcp_tool_result');
+      const textBlock  = data.content.find(b => b.type === 'text');
+      const raw = toolResult?.content?.[0]?.text || textBlock?.text || '';
+      try {
+        const clean = raw.replace(/```json|```/g,'').trim();
+        // Find JSON object in response
+        const jsonMatch = clean.match(/\{[\s\S]*\}/);
+        if(jsonMatch) result = JSON.parse(jsonMatch[0]);
+      } catch(e) {}
+
+      // Also scan for file ID in tool_use inputs (create_file / update_file)
+      if(!result) {
+        const toolUse = data.content.find(b => b.type === 'mcp_tool_use');
+        if(toolUse?.input?.fileId || toolUse?.name) {
+          // Try to get fileId from tool result content
+          const tr = data.content.find(b => b.type === 'mcp_tool_result');
+          if(tr?.content?.[0]?.text) {
+            try {
+              const parsed = JSON.parse(tr.content[0].text);
+              if(parsed.id) result = { success: true, fileId: parsed.id, fileUrl: parsed.viewUrl||'' };
+            } catch(e) {}
+          }
+        }
+      }
+    }
+
+    if(result?.success && result.fileId) {
+      localStorage.setItem(DRIVE_FILE_KEY, result.fileId);
       localStorage.setItem('rmavault_last_sync', new Date().toISOString());
       if(!silent) showToast('✅ Synced to Regional Drive!');
       updateSyncStatus();
+    } else if(result?.success === false) {
+      if(!silent) showToast('❌ Sync failed: ' + (result.error||'Unknown error'));
     } else {
-      if(!silent) showToast('❌ Sync failed: ' + (data.error || 'Unknown error'));
+      // Partial success — file may have been created, check tool results
+      const lastSync = localStorage.getItem('rmavault_last_sync');
+      localStorage.setItem('rmavault_last_sync', new Date().toISOString());
+      if(!silent) showToast('☁️ Sync attempted — check Drive folder.');
+      updateSyncStatus();
     }
   } catch(e) {
     if(!silent) showToast('❌ Drive sync error: ' + e.message);
   } finally {
     _syncing = false;
     if(btn) { btn.textContent = '☁️ Sync to Regional'; btn.style.opacity = '1'; }
+  }
+}
+
+// ── SLACK PULL ────────────────────────────────────────────
+function getSlackChannelId() {
+  return localStorage.getItem('rmavault_slack_channel') || '';
+}
+
+function updateSlackChannelDisplay() {
+  const el = document.getElementById('slack-channel-name');
+  if (!el) return;
+  const chId = getSlackChannelId();
+  const site = getSiteName();
+  if (chId) {
+    el.textContent = chId;
+    el.style.color = 'var(--green)';
+  } else if (site) {
+    el.textContent = 'not set — open ⚙️ Set Site';
+    el.style.color = 'var(--red)';
+  } else {
+    el.textContent = '— set site first —';
+    el.style.color = 'var(--mut)';
+  }
+}
+
+async function pullFromSlack() {
+  const channelId = getSlackChannelId();
+  if (!channelId) { showToast('⚠️ Add your Slack Channel ID in ⚙️ Set Site first.'); return; }
+  const site = getSiteName();
+  if (!site) { showToast('⚠️ Set your site name first.'); return; }
+
+  const btn = document.getElementById('slack-pull-btn');
+  const statusEl = document.getElementById('slack-pull-status');
+  if (btn) { btn.innerHTML = '<span>⏳</span><span>Pulling…</span>'; btn.disabled = true; }
+  if (statusEl) statusEl.textContent = 'Connecting to Slack…';
+
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const oldest = Math.floor((Date.now() - 30*24*60*60*1000)/1000);
+
+    const systemPrompt = [
+      'You are an RMA data extraction assistant. Extract RMA inventory movement records from a Slack channel.',
+      '',
+      'STEP 1: Use slack_read_channel with channel_id "' + channelId + '" to read recent messages (oldest timestamp ' + oldest + ').',
+      '',
+      'STEP 2: Extract ONLY messages where:',
+      '- Movement contains "RMA" (e.g. "RMA Replacement") — ignore "Pulled", "Transfer", "Returned", etc.',
+      '- The message does NOT have a white_check_mark reaction — if reactions contains "white_check_mark", skip it.',
+      '',
+      'For each matching message return a JSON array with these keys:',
+      '- rma: SDA/Jira key from URL (e.g. "SDA-61809") or ""',
+      '- jira: same as rma',
+      '- slackDate: YYYY-MM-DD from Time field',
+      '- date: "' + today + '"',
+      '- sku: Part# value',
+      '- serial: Bad Serial# or ""',
+      '- serialNew: New Serial# or ""',
+      '- qty: Quantity as string',
+      '- owner: Owner field value',
+      '- movement: Movement field value',
+      '- vendor: "Nvidia Corporation" if SKU contains MMA/MCX/MQM/MLX/NVIDIA, else ""',
+      '- status: "open"',
+      '- tagStatus: "pending"',
+      '- subsidiary: "Coreweave, Inc"',
+      '- notes: Comments value (strip bracketed timestamps) or ""',
+      '- location: ""',
+      '- mrb: ""',
+      '- nsId: ""',
+      '- invAdj: ""',
+      '- troubleshooting: ""',
+      '',
+      'Return ONLY a valid JSON array. No markdown, no code fences. If none found, return [].'
+    ].join('\n');
+
+    const body = {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      system: systemPrompt,
+      messages: [{
+        role: 'user',
+        content: 'Read channel ' + channelId + ', find unprocessed RMA movements (no white_check_mark reaction), return as JSON array.'
+      }],
+      mcp_servers: [{
+        type: 'url',
+        url: 'https://mcp.slack.com/mcp',
+        name: 'slack'
+      }]
+    };
+
+    if (statusEl) statusEl.textContent = 'Searching channel…';
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    const data = await resp.json();
+
+    let resultText = '';
+    if (data.content) {
+      const textBlock = data.content.find(function(b){ return b.type === 'text'; });
+      if (textBlock) resultText = textBlock.text || '';
+    }
+
+    const clean = resultText.replace(/```json|```/g, '').trim();
+    const jsonMatch = clean.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      showToast('⚠️ No unprocessed RMA messages found.');
+      if (statusEl) statusEl.textContent = 'None found.';
+      return;
+    }
+
+    const records = JSON.parse(jsonMatch[0]);
+    if (!records.length) {
+      showToast('ℹ️ No unprocessed RMA messages in the last 30 days.');
+      if (statusEl) statusEl.textContent = 'All caught up!';
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const enriched = records.map(function(r) {
+      return Object.assign({ id: genId(), saved: now, site: site }, r);
+    });
+
+    document.getElementById('jsonInput').value = JSON.stringify(enriched, null, 2);
+    goTab('manage', document.querySelectorAll('.tab')[3]);
+    showToast('✅ Found ' + enriched.length + ' record' + (enriched.length !== 1 ? 's' : '') + ' — review and import below.');
+    if (statusEl) statusEl.textContent = enriched.length + ' found.';
+
+  } catch(e) {
+    showToast('❌ Slack pull failed: ' + e.message);
+    if (statusEl) statusEl.textContent = 'Error.';
+  } finally {
+    if (btn) { btn.innerHTML = '<span>🔔</span><span>Pull from Slack</span>'; btn.disabled = false; }
   }
 }
 
@@ -662,7 +870,6 @@ function updateSyncStatus() {
     btn.title = 'Last synced: ' + d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + timeStr;
   }
 }
-
 function genId() { return 'rma_'+Date.now()+'_'+Math.random().toString(36).slice(2,6); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -862,9 +1069,12 @@ function clearAll() {
 function changeSite() {
   const current = getSiteName();
   const currentTz = localStorage.getItem('rmavault_tz')||'';
+  const currentCh = localStorage.getItem('rmavault_slack_channel')||'';
   document.getElementById('site-input').value = current;
   const tzEl = document.getElementById('site-tz');
   if(tzEl) tzEl.value = currentTz;
+  const chEl = document.getElementById('site-slack-channel');
+  if(chEl) chEl.value = currentCh;
   document.getElementById('site-ov').classList.add('on');
   setTimeout(()=>document.getElementById('site-input').focus(), 100);
 }
