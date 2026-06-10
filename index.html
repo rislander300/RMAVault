@@ -167,7 +167,7 @@ tbody tr:hover td{background:var(--s2);cursor:pointer}
   <div class="logo">
     <div style="display:flex;flex-direction:column">
       <div class="logo-txt" style="font-size:16px">RMA<b>Vault</b></div>
-      <div style="font-size:9px;color:var(--mut);font-family:monospace;margin-top:1px">build 2026-06-10 12:50</div>
+      <div style="font-size:9px;color:var(--mut);font-family:monospace;margin-top:1px">v1.3.0 — 2026-06-10</div>
       <span id="site-label" style="color:var(--acc);font-size:11px;font-weight:600"></span>
     </div>
   </div>
@@ -421,6 +421,54 @@ assignee: Da'wyna Pearson
 
 <!-- ══ MANAGE ══ -->
 <div class="panel" id="p-manage">
+  <div class="card" style="border-color:var(--acc)">
+    <div class="card-title" style="color:var(--acc)">📋 Changelog</div>
+    <div style="font-size:11px;line-height:1.8;color:var(--txt)">
+      <div style="margin-bottom:10px">
+        <span style="font-family:monospace;color:var(--acc);font-weight:700">v1.3.0</span>
+        <span style="color:var(--mut);margin-left:8px">2026-06-10</span>
+        <ul style="margin:4px 0 0 16px;color:var(--mut)">
+          <li>Added Pull from Drive button — restore records from Drive CSV</li>
+          <li>Added Pull from Slack button — auto-import unprocessed RMA messages</li>
+          <li>Added paste zone on Import tab for faster paste workflow</li>
+          <li>Added Slack Channel ID field to Set Site overlay</li>
+          <li>Fixed CSV parsing on Pull from Drive (header mapping)</li>
+          <li>Fixed duplicate beforeprint listener causing print issues</li>
+          <li>Migrated Drive sync back to Apps Script (personal Gmail, Anyone access)</li>
+        </ul>
+      </div>
+      <div style="margin-bottom:10px">
+        <span style="font-family:monospace;color:var(--mut);font-weight:700">v1.2.0</span>
+        <span style="color:var(--mut);margin-left:8px">2026-06-03</span>
+        <ul style="margin:4px 0 0 16px;color:var(--mut)">
+          <li>FAVault Chrome Extension for Jira ticket capture</li>
+          <li>SDA timestamp tracking (created, acknowledged, repair complete)</li>
+          <li>Enrich-vs-create logic for Jira bookmarklet records</li>
+          <li>Replacement transceiver serial capture from Jira changelog</li>
+        </ul>
+      </div>
+      <div style="margin-bottom:10px">
+        <span style="font-family:monospace;color:var(--mut);font-weight:700">v1.1.0</span>
+        <span style="color:var(--mut);margin-left:8px">2026-05-01</span>
+        <ul style="margin:4px 0 0 16px;color:var(--mut)">
+          <li>Google Drive CSV sync via Apps Script</li>
+          <li>Regional dashboard (Regional.html) for NE region aggregation</li>
+          <li>Print queue for bulk label printing</li>
+          <li>Excel import with auto column mapping</li>
+        </ul>
+      </div>
+      <div>
+        <span style="font-family:monospace;color:var(--mut);font-weight:700">v1.0.0</span>
+        <span style="color:var(--mut);margin-left:8px">2026-04-01</span>
+        <ul style="margin:4px 0 0 16px;color:var(--mut)">
+          <li>Initial RMAVault release</li>
+          <li>Slack message parsing and RMA tag generation</li>
+          <li>RMA log with status tracking</li>
+          <li>QR code on printed tags</li>
+        </ul>
+      </div>
+    </div>
+  </div>
   <div class="card">
     <div class="card-title">⚡ Import JSON (from Claude)</div>
     <textarea id="jsonInput" style="min-height:80px" placeholder='{"rma":"SDA-51330","date":"2026-05-19",...}'></textarea>
