@@ -631,7 +631,7 @@ function persist() {
 }
 
 // ── DRIVE SYNC (Google Apps Script) ─────────────────────
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsWVwg7Jdcfq55THq-jA_yueKyYgKa4k3BIjUIYGHu08RK70JhRvm5rYO8PTKzsfnlIA/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyNO48iimVcLVywscoH34pTZQHcUjw0L3m8NgipuGr-j0er0Z6g38wsU1ExDv1GLbQnhg/exec';
 const DRIVE_FILE_KEY = 'rmavault_drive_file_id';
 let _driveTimer;
 let _syncing = false;
@@ -985,7 +985,38 @@ function parseCSVToRows(csv) {
     if(vals.length < 3) continue;
     const obj = {};
     headers.forEach(function(h, idx){ obj[h] = (vals[idx]||'').replace(/^"|"$/g,''); });
-    if(obj.id) result.push(obj);
+    // Map CSV headers back to internal keys
+    const row = {
+      id: obj.id || ('rma_' + Date.now() + '_' + Math.random().toString(36).slice(2,6) + i),
+      site: obj['Site'] || obj.site || '',
+      rma: obj['RMA #'] || obj.rma || '',
+      slackDate: obj['Slack Date'] || obj.slackDate || '',
+      date: obj['Date'] || obj.date || '',
+      saved: obj['Saved Date'] || obj.saved || '',
+      status: obj['Status'] || obj.status || 'open',
+      tagStatus: obj['Tag Status'] || obj.tagStatus || 'pending',
+      mrb: obj['MRB #'] || obj.mrb || '',
+      mrbDate: obj['MRB Date'] || obj.mrbDate || '',
+      tracking: obj['Tracking #'] || obj.tracking || '',
+      sku: obj['SKU'] || obj.sku || '',
+      serial: obj['Bad Serial'] || obj.serial || '',
+      serialNew: obj['New Serial'] || obj.serialNew || '',
+      qty: obj['Qty'] || obj.qty || '',
+      vendor: obj['Vendor'] || obj.vendor || '',
+      jira: obj['Jira'] || obj.jira || '',
+      nsId: obj['NetSuite ID'] || obj.nsId || '',
+      owner: obj['Owner'] || obj.owner || '',
+      movement: obj['Movement'] || obj.movement || '',
+      location: obj['Location'] || obj.location || '',
+      assetTag: obj['Asset Tag'] || obj.assetTag || '',
+      assetModel: obj['Asset Model'] || obj.assetModel || '',
+      assetRack: obj['Asset Rack'] || obj.assetRack || '',
+      assetDC: obj['Asset DC'] || obj.assetDC || '',
+      assetMfr: obj['Asset Mfr'] || obj.assetMfr || '',
+      escalation: obj['Escalation #'] || obj.escalation || '',
+      notes: obj['Notes'] || obj.notes || ''
+    };
+    if(row.rma || row.sku || row.jira) result.push(row);
   }
   return result;
 }
