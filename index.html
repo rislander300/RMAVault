@@ -178,6 +178,7 @@ tbody tr:hover td{background:var(--s2);cursor:pointer}
   <!-- Right: buttons -->
   <div class="hdr-btns" style="justify-content:flex-end">
     <button class="hdr-btn" onclick="exportCSV()">⬇️ Export CSV</button>
+    <button class="hdr-btn" id="drive-pull-btn" onclick="pullFromDrive()" style="border-color:var(--blue);color:var(--blue)" title="Restore records from Regional Drive">⬇️ Pull from Drive</button>
     <button class="hdr-btn" id="sync-btn" onclick="syncToDrive()" style="border-color:var(--green);color:var(--green)" title="Push CSV to Regional Drive folder">☁️ Sync to Regional</button>
     <button class="hdr-btn" onclick="openScanMode()" style="border-color:var(--blue);color:var(--blue)">📡 Scan Serials</button>
     <button class="hdr-btn" onclick="changeSite()" style="border-color:var(--mut);color:var(--mut)" id="site-btn">🏢 <span id="site-btn-label">Set Site</span></button>
@@ -217,25 +218,23 @@ tbody tr:hover td{background:var(--s2);cursor:pointer}
           </div>
           <div id="slack-pull-status" style="font-size:11px;color:var(--mut)"></div>
         </div>
-        <textarea id="slackInput" style="min-height:200px;border-color:var(--blue)" placeholder="Paste Slack ticket OR Jira bookmarklet output here…
-
-— Slack example —
-@Dawn Schimmel made an inventory adjustment
-Time: May 6th, 2026 at 9:17 AM EDT
-Part#: MMA4Z00-NS
-Movement: RMA Replacement
-JIRA Ticket/PO #: https://…/SDA-51969
-If RMA- Bad Serial#: MT2424DM06819
-
-— Jira bookmarklet example —
-FAVAULT_JIRA
-key: SDA-56738
-summary: InfiniBand Link | Region: US-EAST-07A | A: MT2352J00V0N 25/1
-assignee: Da'wyna Pearson
-..."></textarea>
+        <div id="paste-zone" tabindex="0"
+          style="min-height:160px;border:2px dashed var(--blue);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;outline:none;transition:border-color 0.2s,background 0.2s;background:var(--s2);padding:20px;text-align:center"
+          onclick="this.focus()"
+          onkeydown="if(event.key==='Enter'||event.key===' ')this.focus()"
+          onfocus="this.style.borderColor='var(--acc)';this.style.background='var(--s3)'"
+          onblur="this.style.borderColor='var(--blue)';this.style.background='var(--s2)'"
+          onpaste="handlePasteZone(event)">
+          <div style="font-size:28px">📋</div>
+          <div style="font-size:13px;font-weight:700;color:var(--txt)">Click here, then paste</div>
+          <div style="font-size:11px;color:var(--mut)">Slack message or Jira bookmarklet · Cmd/Ctrl+V</div>
+          <div id="paste-zone-status" style="font-size:11px;color:var(--green);display:none;margin-top:4px"></div>
+        </div>
+        <!-- Hidden textarea still used internally by parser -->
+        <textarea id="slackInput" style="display:none"></textarea>
         <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px">
-          <button class="btn-acc" onclick="parseAndGenerate()">⚡ Parse &amp; Generate</button>
-          <button class="btn-clear" onclick="clearAll()">✕</button>
+          <button class="btn-acc" id="parse-btn" onclick="parseAndGenerate()" style="display:none">⚡ Parse &amp; Generate</button>
+          <button class="btn-clear" id="clear-btn" onclick="clearAll()" style="display:none">✕</button>
         </div>
       </div>
       <div id="edit-fields" style="display:none">
@@ -252,8 +251,8 @@ assignee: Da'wyna Pearson
             <div class="fld"><label>Qty</label><input id="eQty" oninput="updateTag()"></div>
             <div class="fld"><label>Processed by</label><input id="eOwner" oninput="updateTag()"></div>
             <div class="fld"><label>Movement</label><input id="eMovement" oninput="updateTag()"></div>
-            <div class="fld"><label>Date (today)</label><input id="eDate" type="date" oninput="updateTag()"></div>
-            <div class="fld"><label>Slack Date</label><input id="eSlackDate" type="date" oninput="updateTag()"></div>
+            <div class="fld"><label>Date (today) 🔒</label><input id="eDate" type="date" readonly style="opacity:0.6;cursor:not-allowed" title="Date is locked and cannot be edited"></div>
+            <div class="fld"><label>Slack Date 🔒</label><input id="eSlackDate" type="date" readonly style="opacity:0.6;cursor:not-allowed" title="Slack date is locked and cannot be edited"></div>
             <div class="fld full"><label>Notes</label><input id="eNotes" oninput="updateTag()"></div>
             <div class="fld full"><label>MRB # (return batch)</label><input id="eMrb" placeholder="e.g. MRB-2024-001"></div>
             <div class="fld full"><label>Escalation # (if escalated)</label><input id="eEscalation" placeholder="e.g. ESC-1234" style="border-color:var(--purple,#a78bfa)"></div>
@@ -611,6 +610,11 @@ function load() {
     setTimeout(()=>document.getElementById('site-input').focus(), 100);
   } else {
     applySiteName(site);
+    // Auto-restore from Drive if vault is empty but Drive file ID is known
+    if(!rows.length && localStorage.getItem(DRIVE_FILE_KEY)) {
+      showToast('⬇️ Vault is empty — restoring from Drive…');
+      setTimeout(function(){ pullFromDrive(false); }, 1000);
+    }
   }
   renderLog(); renderStats(); loadSLAs(); updateSyncStatus();
 }
@@ -636,7 +640,7 @@ function buildCSV() {
 
 async function syncToDrive(silent=false) {
   if(_syncing) return;
-  if(!rows.length) { if(!silent) showToast('⚠️ No records to sync.'); return; }
+  if(!rows.length) { if(!silent) showToast('⚠️ No records to sync — vault is empty.'); return; }
   const siteName = getSiteName();
   if(!siteName) { if(!silent) showToast('⚠️ Set your site name first.'); return; }
 
@@ -662,8 +666,8 @@ async function syncToDrive(silent=false) {
       }],
       mcp_servers: [{
         type: 'url',
-        url: 'https://mcp.slack.com/mcp',
-        name: 'slack'
+        url: 'https://drivemcp.googleapis.com/mcp/v1',
+        name: 'google-drive'
       }]
     };
 
@@ -675,7 +679,6 @@ async function syncToDrive(silent=false) {
 
     const data = await resp.json();
     // Extract result from MCP tool response
-    let result = null;
     if(data.content) {
       // Try to find a tool result block first, then text
       const toolResult = data.content.find(b => b.type === 'mcp_tool_result');
@@ -724,6 +727,112 @@ async function syncToDrive(silent=false) {
     _syncing = false;
     if(btn) { btn.textContent = '☁️ Sync to Regional'; btn.style.opacity = '1'; }
   }
+}
+
+// ── PULL FROM DRIVE ───────────────────────────────────────
+async function pullFromDrive(silent=false) {
+  const siteName = getSiteName();
+  if(!siteName) { if(!silent) showToast('⚠️ Set your site name first.'); return; }
+
+  const btn = document.getElementById('drive-pull-btn');
+  if(btn) { btn.textContent = '⬇️ Restoring…'; btn.style.opacity='0.6'; btn.disabled=true; }
+
+  try {
+    const filename = 'RMAVault_' + siteName + '.csv';
+    const existingFileId = localStorage.getItem(DRIVE_FILE_KEY);
+
+    const body = {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8000,
+      system: 'You are a file retrieval assistant. Use the Google Drive MCP tool to find and read a CSV file. ' +
+        'Return ONLY the raw CSV content with no explanation, no markdown, no code fences — just the CSV text exactly as stored.',
+      messages: [{
+        role: 'user',
+        content: existingFileId
+          ? 'Read the Google Drive file with ID "' + existingFileId + '" and return its full CSV content.'
+          : 'Search Google Drive for a file named "' + filename + '" and return its full CSV content.'
+      }],
+      mcp_servers: [{
+        type: 'url',
+        url: 'https://drivemcp.googleapis.com/mcp/v1',
+        name: 'google-drive'
+      }]
+    };
+
+    if(!silent) showToast('⬇️ Pulling from Drive…');
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    const data = await resp.json();
+
+    let csvText = '';
+    if(data.content) {
+      const textBlock = data.content.find(function(b){ return b.type === 'text'; });
+      if(textBlock) csvText = textBlock.text || '';
+      // Also check tool results
+      const toolResults = data.content.filter(function(b){ return b.type === 'mcp_tool_result'; });
+      if(!csvText && toolResults.length) {
+        csvText = toolResults.map(function(b){ return b.content?.[0]?.text || ''; }).join('');
+      }
+    }
+
+    csvText = csvText.replace(/```csv|```/g,'').trim();
+    if(!csvText || !csvText.includes(',')) {
+      if(!silent) showToast('⚠️ No data found in Drive for ' + siteName);
+      return;
+    }
+
+    // Parse CSV back into rows
+    const parsed = parseCSVToRows(csvText);
+    if(!parsed.length) {
+      if(!silent) showToast('⚠️ Could not parse Drive data.');
+      return;
+    }
+
+    rows = parsed;
+    persist();
+    renderLog();
+    renderStats();
+    showToast('✅ Restored ' + rows.length + ' records from Drive.');
+
+  } catch(e) {
+    if(!silent) showToast('❌ Drive restore failed: ' + e.message);
+  } finally {
+    if(btn) { btn.textContent = '⬇️ Pull from Drive'; btn.style.opacity='1'; btn.disabled=false; }
+  }
+}
+
+function parseCSVToRows(csv) {
+  const lines = csv.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  if(lines.length < 2) return [];
+  const headers = lines[0].split(',').map(function(h){ return h.replace(/"/g,'').trim(); });
+  const result = [];
+  for(var i=1; i<lines.length; i++) {
+    const vals = splitCSVLine(lines[i]);
+    if(vals.length < 3) continue;
+    const obj = {};
+    headers.forEach(function(h, idx){ obj[h] = (vals[idx]||'').replace(/^"|"$/g,''); });
+    if(obj.id) result.push(obj);
+  }
+  return result;
+}
+
+function splitCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for(var i=0; i<line.length; i++) {
+    const ch = line[i];
+    if(ch === '"') { inQuotes = !inQuotes; }
+    else if(ch === ',' && !inQuotes) { result.push(current); current = ''; }
+    else { current += ch; }
+  }
+  result.push(current);
+  return result;
 }
 
 // ── SLACK PULL ────────────────────────────────────────────
@@ -843,15 +952,49 @@ async function pullFromSlack() {
       return;
     }
 
-    const now = new Date().toISOString();
-    const enriched = records.map(function(r) {
-      return Object.assign({ id: genId(), saved: now, site: site }, r);
-    });
+    // If multiple records, process first one and queue the rest
+    const first = records[0];
 
-    document.getElementById('jsonInput').value = JSON.stringify(enriched, null, 2);
-    goTab('manage', document.querySelectorAll('.tab')[3]);
-    showToast('✅ Found ' + enriched.length + ' record' + (enriched.length !== 1 ? 's' : '') + ' — review and import below.');
-    if (statusEl) statusEl.textContent = enriched.length + ' found.';
+    // Reconstruct the Slack message format so the existing parser handles it
+    const msgText = [
+      '@' + (first.owner || site) + ' made an inventory Movement',
+      'Time:           ' + (first.slackDate || today) + ' at 12:00 AM EDT',
+      'Owner:          ' + (first.owner || site),
+      'Part#:          ' + (first.sku || ''),
+      'Movement:       ' + (first.movement || 'RMA Replacement'),
+      'Quantity:       ' + (first.qty || '1'),
+      'JIRA Ticket/PO #: https://coreweave.atlassian.net/browse/' + (first.rma || ''),
+      'If RMA- Bad Serial#:   ' + (first.serial || ''),
+      'If RMA- New Serial#:   ' + (first.serialNew || '')
+    ].join('\n');
+
+    // Feed into the textarea and lock it — no editing allowed on Slack-pulled data
+    const inputEl = document.getElementById('slackInput');
+    if (inputEl) {
+      inputEl.value = msgText;
+      inputEl.readOnly = true;
+      inputEl.style.opacity = '0.7';
+      inputEl.style.cursor = 'not-allowed';
+      inputEl.title = 'Slack data is locked — use Pull from Slack to refresh';
+    }
+
+    // Switch to import tab first
+    goTab('import', document.querySelectorAll('.tab')[0]);
+
+    // Parse it
+    parseAndGenerate();
+
+    const remaining = records.length - 1;
+    showToast('✅ Loaded record 1 of ' + records.length + (remaining > 0 ? ' — ' + remaining + ' more pending' : '') + '. Review and save.');
+    if (statusEl) statusEl.textContent = records.length + ' found.';
+
+    // Store remaining records for sequential processing
+    if (remaining > 0) {
+      localStorage.setItem('rmavault_slack_queue', JSON.stringify(records.slice(1)));
+      showNextQueuedRecord();
+    } else {
+      localStorage.removeItem('rmavault_slack_queue');
+    }
 
   } catch(e) {
     showToast('❌ Slack pull failed: ' + e.message);
@@ -980,11 +1123,12 @@ function parseAndGenerate() {
     set('eAssetDC',   p.assetDC);
     set('eAssetMfr',  p.assetMfr);
     set('eJiraUrl',   p.jiraUrl);
-    document.getElementById('edit-fields').style.display='block';
-    _tagStatus='pending';
-    updateTag();
-    showToast('🎫 Jira ticket parsed — ' + p.sda + (p.sku ? ' · ' + p.sku : ''));
-    return;
+  document.getElementById('edit-fields').style.display='block';
+  _tagStatus='pending';
+  updateTag();
+  showToast('🎫 Jira ticket parsed — ' + p.sda + (p.sku ? ' · ' + p.sku : ''));
+  const cb = document.getElementById('clear-btn'); if(cb) cb.style.display='block';
+  return;
   }
 
   // ── SLACK PARSER (original) ───────────────────────────────
@@ -1026,6 +1170,55 @@ function parseAndGenerate() {
   document.getElementById('edit-fields').style.display='block';
   _tagStatus='pending';
   updateTag();
+  const cb = document.getElementById('clear-btn'); if(cb) cb.style.display='block';
+}
+
+function showNextQueuedRecord() {
+  const queue = JSON.parse(localStorage.getItem('rmavault_slack_queue') || '[]');
+  if (!queue.length) return;
+
+  // Add a "Next Record" button near Parse & Generate if not already there
+  let nextBtn = document.getElementById('slack-next-btn');
+  if (!nextBtn) {
+    nextBtn = document.createElement('button');
+    nextBtn.id = 'slack-next-btn';
+    nextBtn.className = 'btn-acc';
+    nextBtn.style.background = '#4a154b';
+    nextBtn.style.marginLeft = '8px';
+    nextBtn.onclick = function() {
+      const q = JSON.parse(localStorage.getItem('rmavault_slack_queue') || '[]');
+      if (!q.length) { this.remove(); return; }
+      const next = q[0];
+      const today = new Date().toISOString().slice(0, 10);
+      const msgText = [
+        '@' + (next.owner || '') + ' made an inventory Movement',
+        'Time:           ' + (next.slackDate || today) + ' at 12:00 AM EDT',
+        'Owner:          ' + (next.owner || ''),
+        'Part#:          ' + (next.sku || ''),
+        'Movement:       ' + (next.movement || 'RMA Replacement'),
+        'Quantity:       ' + (next.qty || '1'),
+        'JIRA Ticket/PO #: https://coreweave.atlassian.net/browse/' + (next.rma || ''),
+        'If RMA- Bad Serial#:   ' + (next.serial || ''),
+        'If RMA- New Serial#:   ' + (next.serialNew || '')
+      ].join('\n');
+      const inputEl = document.getElementById('slackInput');
+      if (inputEl) {
+        inputEl.value = msgText;
+        inputEl.readOnly = true;
+        inputEl.style.opacity = '0.7';
+        inputEl.style.cursor = 'not-allowed';
+        inputEl.title = 'Slack data is locked — use Pull from Slack to refresh';
+      }
+      const remaining = q.length - 1;
+      localStorage.setItem('rmavault_slack_queue', JSON.stringify(q.slice(1)));
+      this.textContent = '⏭ Next Record (' + remaining + ' left)';
+      if (!remaining) { this.remove(); localStorage.removeItem('rmavault_slack_queue'); }
+      showToast('📋 Loaded next record — ' + remaining + ' remaining.');
+    };
+    const parseBtn = document.querySelector('[onclick="parseAndGenerate()"]');
+    if (parseBtn) parseBtn.parentNode.insertBefore(nextBtn, parseBtn.nextSibling);
+  }
+  nextBtn.textContent = '⏭ Next Record (' + queue.length + ' left)';
 }
 
 // ── TAG UPDATE ────────────────────────────────────────────
@@ -1056,13 +1249,57 @@ function updateTagBanner(status) {
   text.style.color=st.color;text.textContent=st.label;
 }
 
+function handlePasteZone(event) {
+  event.preventDefault();
+  const text = (event.clipboardData || window.clipboardData).getData('text');
+  if (!text || !text.trim()) return;
+
+  // Feed into hidden textarea
+  const ta = document.getElementById('slackInput');
+  if (ta) ta.value = text.trim();
+
+  // Update paste zone appearance
+  const zone = document.getElementById('paste-zone');
+  const status = document.getElementById('paste-zone-status');
+  if (zone) {
+    zone.style.borderColor = 'var(--green)';
+    zone.style.borderStyle = 'solid';
+  }
+  if (status) {
+    status.style.display = 'block';
+    const isJira = text.startsWith('FAVAULT_JIRA');
+    status.textContent = isJira ? '🎫 Jira data detected — parsing…' : '💬 Slack message detected — parsing…';
+  }
+
+  // Auto-parse immediately
+  parseAndGenerate();
+}
+
 function clearAll() {
-  document.getElementById('slackInput').value='';
-  document.getElementById('edit-fields').style.display='none';
-  ['eSda','eRma','eSku','eVendor','eSerial','eSerialNew','eQty','eOwner','eMovement','eNotes','eDate','eSlackDate','eNsId','eMrb','eTracking','eAssetTag','eAssetModel','eAssetRack','eAssetDC','eAssetMfr','eJiraUrl'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});;
+  const ta = document.getElementById('slackInput');
+  if (ta) { ta.value = ''; ta.readOnly = false; ta.style.opacity = ''; ta.style.cursor = ''; ta.title = ''; }
+
+  // Reset paste zone
+  const zone = document.getElementById('paste-zone');
+  const status = document.getElementById('paste-zone-status');
+  if (zone) { zone.style.borderColor = 'var(--blue)'; zone.style.borderStyle = 'dashed'; }
+  if (status) { status.style.display = 'none'; status.textContent = ''; }
+
+  // Hide parse/clear buttons
+  const pb = document.getElementById('parse-btn');
+  const cb = document.getElementById('clear-btn');
+  if (pb) pb.style.display = 'none';
+  if (cb) cb.style.display = 'none';
+
+  document.getElementById('edit-fields').style.display = 'none';
+  ['eSda','eRma','eSku','eVendor','eSerial','eSerialNew','eQty','eOwner','eMovement','eNotes','eDate','eSlackDate','eNsId','eMrb','eTracking','eAssetTag','eAssetModel','eAssetRack','eAssetDC','eAssetMfr','eJiraUrl'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['t-rma','t-vendor','t-sku','t-movement','t-qty','t-serial','t-serial-new','t-sda','t-owner','t-notes','t-date'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
   document.getElementById('qr-container').innerHTML='';
-  _tagStatus='pending';updateTagBanner('pending');
+  _tagStatus='pending'; updateTagBanner('pending');
+  // Remove next record button if present
+  const nb = document.getElementById('slack-next-btn');
+  if (nb) nb.remove();
+  localStorage.removeItem('rmavault_slack_queue');
 }
 
 // ── SAVE TO VAULT ─────────────────────────────────────────
