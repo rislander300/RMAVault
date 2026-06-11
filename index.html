@@ -167,7 +167,7 @@ tbody tr:hover td{background:var(--s2);cursor:pointer}
   <div class="logo">
     <div style="display:flex;flex-direction:column">
       <div class="logo-txt" style="font-size:16px">RMA<b>Vault</b></div>
-      <div style="font-size:9px;color:var(--mut);font-family:monospace;margin-top:1px">v1.3.0 — 2026-06-10</div>
+      <div style="font-size:9px;color:var(--mut);font-family:monospace;margin-top:1px">v1.3.2 — 2026-06-11</div>
       <span id="site-label" style="color:var(--acc);font-size:11px;font-weight:600"></span>
     </div>
   </div>
@@ -216,12 +216,12 @@ tbody tr:hover td{background:var(--s2);cursor:pointer}
           📋 Click here and paste (Ctrl+V / Cmd+V)
           <div id="paste-zone-status" style="font-size:11px;color:var(--green);display:none;margin-top:4px"></div>
         </div>
-        <div style="display:flex;gap:6px;margin-bottom:8px">
+        <div style="display:none">
           <button id="mode-slack" onclick="setPasteMode('slack')" style="padding:5px 12px;border-radius:6px;border:1px solid var(--blue);background:var(--blue);color:#fff;font-size:10px;font-weight:700;cursor:pointer">💬 Slack</button>
           <button id="mode-jira"  onclick="setPasteMode('jira')"  style="padding:5px 12px;border-radius:6px;border:1px solid var(--bd);background:transparent;color:var(--mut);font-size:10px;font-weight:700;cursor:pointer">🎫 Jira Bookmarklet</button>
           <span id="paste-mode-hint" style="font-size:10px;color:var(--mut);align-self:center;margin-left:4px">Auto-detects on paste</span>
         </div>
-        <textarea id="slackInput" style="min-height:200px;border-color:var(--blue)" placeholder="Paste Slack ticket OR Jira bookmarklet output here…
+        <textarea id="slackInput" readonly style="display:none" placeholder="Paste Slack ticket OR Jira bookmarklet output here…
 
 — Slack example —
 @Dawn Schimmel made an inventory adjustment
@@ -256,8 +256,8 @@ assignee: Da'wyna Pearson
             <div class="fld"><label>Qty</label><input id="eQty" oninput="updateTag()"></div>
             <div class="fld"><label>Processed by</label><input id="eOwner" oninput="updateTag()"></div>
             <div class="fld"><label>Movement</label><input id="eMovement" oninput="updateTag()"></div>
-            <div class="fld"><label>Date (today)</label><input id="eDate" type="date" oninput="updateTag()"></div>
-            <div class="fld"><label>Slack Date</label><input id="eSlackDate" type="date" oninput="updateTag()"></div>
+            <div class="fld"><label>Date (today)</label><input id="eDate" type="date" oninput="updateTag()" readonly style="opacity:0.6;cursor:not-allowed" title="Date cannot be changed after saving"></div>
+            <div class="fld"><label>Slack Date</label><input id="eSlackDate" type="date" oninput="updateTag()" readonly style="opacity:0.6;cursor:not-allowed" title="Slack date cannot be changed after saving"></div>
             <div class="fld full"><label>Notes</label><input id="eNotes" oninput="updateTag()"></div>
             <div class="fld full"><label>MRB # (return batch)</label><input id="eMrb" placeholder="e.g. MRB-2024-001"></div>
             <div class="fld full"><label>Escalation # (if escalated)</label><input id="eEscalation" placeholder="e.g. ESC-1234" style="border-color:var(--purple,#a78bfa)"></div>
@@ -361,8 +361,7 @@ assignee: Da'wyna Pearson
     <div style="display:flex;align-items:center;gap:8px">
       <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#fb923c;width:64px;flex-shrink:0">MRB #</span>
       <input id="bulk-mrb-input" placeholder="Enter MRB #…" style="flex:1;background:var(--bg);border:1px solid #fb923c;border-radius:6px;color:var(--txt);padding:7px 10px;outline:none;font-family:monospace;font-size:12px">
-      <button onclick="applyBulkMrb('return to vendor')" style="padding:7px 14px;border-radius:6px;border:none;background:#fb923c;color:#0f1117;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap">📦 Return to Vendor</button>
-      <button onclick="applyBulkMrb('scrap')" style="padding:7px 14px;border-radius:6px;border:none;background:#ef4444;color:#fff;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap">🗑 Scrap</button>
+      <button onclick="applyBulkMrb()" style="padding:7px 14px;border-radius:6px;border:none;background:#fb923c;color:#0f1117;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap">✅ Apply</button>
     </div>
     <!-- Tracking row -->
     <div style="display:flex;align-items:center;gap:8px">
@@ -424,6 +423,22 @@ assignee: Da'wyna Pearson
   <div class="card" style="border-color:var(--acc)">
     <div class="card-title" style="color:var(--acc)">📋 Changelog</div>
     <div style="font-size:11px;line-height:1.8;color:var(--txt)">
+      <div style="margin-bottom:10px">
+        <span style="font-family:monospace;color:var(--acc);font-weight:700">v1.3.2</span>
+        <span style="color:var(--mut);margin-left:8px">2026-06-11</span>
+        <ul style="margin:4px 0 0 16px;color:var(--mut)">
+          <li>Date and Slack Date fields locked — cannot be changed after saving</li>
+          <li>Paste zone now locks textarea to readonly after paste</li>
+        </ul>
+      </div>
+      <div style="margin-bottom:10px">
+        <span style="font-family:monospace;color:var(--acc);font-weight:700">v1.3.1</span>
+        <span style="color:var(--mut);margin-left:8px">2026-06-11</span>
+        <ul style="margin:4px 0 0 16px;color:var(--mut)">
+          <li>Bulk MRB assignment no longer changes status — stamps MRB# and date only</li>
+          <li>Simplified MRB bulk bar to single Apply button</li>
+        </ul>
+      </div>
       <div style="margin-bottom:10px">
         <span style="font-family:monospace;color:var(--acc);font-weight:700">v1.3.0</span>
         <span style="color:var(--mut);margin-left:8px">2026-06-10</span>
@@ -926,7 +941,7 @@ function updateTagBanner(status) {
 
 function clearAll() {
   const ta = document.getElementById('slackInput');
-  if (ta) { ta.value = ''; ta.readOnly = false; ta.style.opacity = ''; ta.style.cursor = ''; ta.title = ''; }
+  if (ta) { ta.value = ''; ta.readOnly = true; ta.style.opacity = '0.7'; ta.style.cursor = 'not-allowed'; ta.title = ''; }
   const zone = document.getElementById('paste-zone');
   const status = document.getElementById('paste-zone-status');
   if (zone) { zone.style.borderColor = 'var(--blue)'; zone.style.borderStyle = 'dashed'; }
@@ -982,7 +997,13 @@ function handlePasteZone(event) {
   const text = (event.clipboardData || window.clipboardData).getData('text');
   if (!text || !text.trim()) return;
   const ta = document.getElementById('slackInput');
-  if (ta) ta.value = text.trim();
+  if (ta) {
+    ta.value = text.trim();
+    ta.readOnly = true;
+    ta.style.opacity = '0.7';
+    ta.style.cursor = 'not-allowed';
+    ta.title = 'Clear to edit manually';
+  }
   const zone = document.getElementById('paste-zone');
   const status = document.getElementById('paste-zone-status');
   if (zone) { zone.style.borderColor = 'var(--green)'; zone.style.borderStyle = 'solid'; }
@@ -1571,22 +1592,20 @@ function applyBulkTracking(){
   showToast('✅ Applied tracking # to '+n+' records.');
 }
 
-function applyBulkMrb(status){
+function applyBulkMrb(){
   const mrb=document.getElementById('bulk-mrb-input').value.trim();
   if(!mrb){showToast('⚠️ Enter MRB # first.');return;}
-  const cleanStatus = String(status).trim().toLowerCase();
   let n=0;
   document.querySelectorAll('.row-check:checked').forEach(cb=>{
     const r=rows.find(x=>x.id===cb.dataset.id);
-    if(r){r.mrb=mrb;r.tagStatus=cleanStatus;if(!r.mrbDate)r.mrbDate=new Date().toISOString();n++;}
+    if(r){r.mrb=mrb;if(!r.mrbDate)r.mrbDate=new Date().toISOString().slice(0,10);n++;}
   });
   persist();
   document.getElementById('bulk-mrb-input').value='';
   clearBulkSelection();
   renderLog();
   renderStats();
-  const label = cleanStatus==='scrap' ? '🗑 Scrap' : '📦 Return to Vendor';
-  showToast('✅ Applied MRB '+mrb+' + '+label+' on '+n+' records.');
+  showToast('✅ Applied MRB# '+mrb+' to '+n+' records.');
 }
 
 function clearBulkSelection(){document.querySelectorAll('.row-check').forEach(c=>c.checked=false);const sa=document.getElementById('selectAll');if(sa)sa.checked=false;document.getElementById('bulk-bar').style.display='none';document.getElementById('bulk-rma-input').value='';}
