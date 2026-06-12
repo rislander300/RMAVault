@@ -167,7 +167,7 @@ tbody tr:hover td{background:var(--s2);cursor:pointer}
   <div class="logo">
     <div style="display:flex;flex-direction:column">
       <div class="logo-txt" style="font-size:16px">RMA<b>Vault</b></div>
-      <div style="font-size:9px;color:var(--mut);font-family:monospace;margin-top:1px">v1.3.2 — 2026-06-11</div>
+      <div style="font-size:9px;color:var(--mut);font-family:monospace;margin-top:1px">v1.3.3 — 2026-06-11</div>
       <span id="site-label" style="color:var(--acc);font-size:11px;font-weight:600"></span>
     </div>
   </div>
@@ -361,7 +361,8 @@ assignee: Da'wyna Pearson
     <div style="display:flex;align-items:center;gap:8px">
       <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#fb923c;width:64px;flex-shrink:0">MRB #</span>
       <input id="bulk-mrb-input" placeholder="Enter MRB #…" style="flex:1;background:var(--bg);border:1px solid #fb923c;border-radius:6px;color:var(--txt);padding:7px 10px;outline:none;font-family:monospace;font-size:12px">
-      <button onclick="applyBulkMrb()" style="padding:7px 14px;border-radius:6px;border:none;background:#fb923c;color:#0f1117;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap">✅ Apply</button>
+      <button onclick="applyBulkMrb('return to vendor')" style="padding:7px 14px;border-radius:6px;border:none;background:#fb923c;color:#0f1117;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap">📦 Return to Vendor</button>
+      <button onclick="applyBulkMrb('scrap')" style="padding:7px 14px;border-radius:6px;border:none;background:#ef4444;color:#fff;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap">🗑 Scrap</button>
     </div>
     <!-- Tracking row -->
     <div style="display:flex;align-items:center;gap:8px">
@@ -423,6 +424,14 @@ assignee: Da'wyna Pearson
   <div class="card" style="border-color:var(--acc)">
     <div class="card-title" style="color:var(--acc)">📋 Changelog</div>
     <div style="font-size:11px;line-height:1.8;color:var(--txt)">
+      <div style="margin-bottom:10px">
+        <span style="font-family:monospace;color:var(--acc);font-weight:700">v1.3.3</span>
+        <span style="color:var(--mut);margin-left:8px">2026-06-11</span>
+        <ul style="margin:4px 0 0 16px;color:var(--mut)">
+          <li>Reverted MRB bulk buttons back to Return to Vendor + Scrap (also sets status)</li>
+          <li>Added average line to monthly trend chart — bars above average shown in accent color</li>
+        </ul>
+      </div>
       <div style="margin-bottom:10px">
         <span style="font-family:monospace;color:var(--acc);font-weight:700">v1.3.2</span>
         <span style="color:var(--mut);margin-left:8px">2026-06-11</span>
@@ -644,7 +653,8 @@ function getSiteTimezone() { return localStorage.getItem('rmavault_tz')||'Americ
 function saveSiteName() {
   const name = document.getElementById('site-input').value.trim().toUpperCase();
   const tz = document.getElementById('site-tz').value;
-  const ch = document.getElementById('site-slack-channel')?.value.trim() || '';
+  const chEl = document.getElementById('site-slack-channel');
+  const ch = chEl ? chEl.value.trim() : '';
   if(!name) { showToast('⚠️ Please enter a site name.'); return; }
   if(!tz) { showToast('⚠️ Please select a timezone.'); return; }
   localStorage.setItem(SITE_KEY, name);
@@ -1592,20 +1602,22 @@ function applyBulkTracking(){
   showToast('✅ Applied tracking # to '+n+' records.');
 }
 
-function applyBulkMrb(){
+function applyBulkMrb(status){
   const mrb=document.getElementById('bulk-mrb-input').value.trim();
   if(!mrb){showToast('⚠️ Enter MRB # first.');return;}
+  const cleanStatus = String(status).trim().toLowerCase();
   let n=0;
   document.querySelectorAll('.row-check:checked').forEach(cb=>{
     const r=rows.find(x=>x.id===cb.dataset.id);
-    if(r){r.mrb=mrb;if(!r.mrbDate)r.mrbDate=new Date().toISOString().slice(0,10);n++;}
+    if(r){r.mrb=mrb;r.tagStatus=cleanStatus;if(!r.mrbDate)r.mrbDate=new Date().toISOString().slice(0,10);n++;}
   });
   persist();
   document.getElementById('bulk-mrb-input').value='';
   clearBulkSelection();
   renderLog();
   renderStats();
-  showToast('✅ Applied MRB# '+mrb+' to '+n+' records.');
+  const label = cleanStatus==='scrap' ? '🗑 Scrap' : '📦 Return to Vendor';
+  showToast('✅ Applied MRB '+mrb+' + '+label+' on '+n+' records.');
 }
 
 function clearBulkSelection(){document.querySelectorAll('.row-check').forEach(c=>c.checked=false);const sa=document.getElementById('selectAll');if(sa)sa.checked=false;document.getElementById('bulk-bar').style.display='none';document.getElementById('bulk-rma-input').value='';}
@@ -1840,7 +1852,19 @@ function renderTrend(data){
   const entries=Object.entries(map).sort((a,b)=>a[0].localeCompare(b[0]));
   if(!entries.length){el.innerHTML='<div class="rpt-empty">No data</div>';return;}
   const max=Math.max(...entries.map(e=>e[1]));
-  el.innerHTML=`<div class="trend-wrap">${entries.map(([m,c])=>`<div class="trend-col"><div class="trend-count">${c}</div><div class="trend-bar" style="height:${Math.max(Math.round(c/max*60),3)}px"></div><div class="trend-label">${new Date(m+'-01').toLocaleDateString('en-US',{month:'short',year:'2-digit'})}</div></div>`).join('')}</div>`;
+  const avg=Math.round(entries.reduce((s,e)=>s+e[1],0)/entries.length*10)/10;
+  const avgPct=Math.round(avg/max*60);
+  const cols=entries.map(function([m,c]){
+    const h=Math.max(Math.round(c/max*60),3);
+    const bg=c>avg?'var(--acc)':'var(--blue)';
+    const lbl=new Date(m+'-01').toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+    return '<div class="trend-col"><div class="trend-count">'+c+'</div><div class="trend-bar" style="height:'+h+'px;background:'+bg+'"></div><div class="trend-label">'+lbl+'</div></div>';
+  }).join('');
+  el.innerHTML=
+    '<div style="font-size:11px;color:var(--mut);margin-bottom:6px;text-align:right">Avg: <span style="color:var(--acc);font-weight:700">'+avg+'</span> RMAs/month</div>'+
+    '<div class="trend-wrap" style="position:relative">'+
+    '<div style="position:absolute;left:0;right:0;bottom:'+(avgPct+20)+'px;border-top:2px dashed var(--acc);opacity:0.6;pointer-events:none;z-index:1"></div>'+
+    cols+'</div>';
 }
 function renderReports(){
   const data=getFilteredRows();
